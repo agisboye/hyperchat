@@ -1,13 +1,21 @@
 const TopLevel = require('./toplevel')
 
-let toplevelObject = new TopLevel()
+let name = process.argv[2]
+let pathName = 'feeds/' + name
+let knowsOtherPublicKey = process.argv[3] !== undefined
+let toplevelObject = new TopLevel(pathName)
 
-toplevelObject.invite("disc words", "B", (err, success) => {
-    console.log(err, success)
+toplevelObject.start()
+
+toplevelObject.on('ready', () => {
+    console.log('Ready now!')
+
+    if (knowsOtherPublicKey) {
+        console.log('inviting')
+        let otherPublicKey = process.argv[3].toString('hex')
+        toplevelObject.invite(otherPublicKey, (err, success) => {
+            console.log(err, success)
+        })
+    }
 })
 
-toplevelObject.on('message', (name, message) => {
-    console.log(name, message)
-})
-
-toplevelObject.sendMessageTo("B", "message")
