@@ -1,9 +1,13 @@
-const toplevel = require('./toplevel')
+const TopLevel = require('./toplevel')
 
-toplevel.invite("disc words", "B", (err, success) => {
+let toplevelObject = new TopLevel()
+
+toplevelObject.invite("disc words", "B", (err, success) => {
     console.log(err, success)
 })
 
-toplevel.onMessage(() => {
-    console.log('on message')
+toplevelObject.on('message', (name, message) => {
+    console.log(name, message)
 })
+
+toplevelObject.sendMessageTo("B", "message")

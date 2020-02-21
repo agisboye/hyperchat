@@ -1,32 +1,26 @@
-function invite(discoveryWords, name, cb) {
-    cb(null, true)
+const { EventEmitter } = require('events')
+
+class TopLevel extends EventEmitter {
+    invite(discoveryWords, name, cb) {
+        cb(null, true)
+    }
+
+    sendMessageTo(name, message) {
+        this.emit('message', name, message)
+    }
+
+    join() {
+
+    }
+
+    leave() {
+
+    }
+
+    getAllMessagesFrom(name, index) {
+        return null
+    }
 }
 
-function sendMessageTo(name, message) {
 
-}
-
-function join() {
-
-}
-
-function leave() {
-
-}
-
-function onMessage(cb) {
-    return cb("from Name", 'message', 'metaData')
-}
-
-function getAllMessagesFrom(name, index) {
-    return null
-}
-
-module.exports = {
-    invite: invite,
-    sendMessageTo: sendMessageTo,
-    join: join,
-    leave: leave,
-    getAllMessagesFrom: getAllMessagesFrom,
-    onMessage: onMessage
-}
+module.exports = TopLevel
