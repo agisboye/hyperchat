@@ -31,14 +31,14 @@ class TopLevel extends EventEmitter {
             this._swarm.on('connection', (socket, details) => {
                 if (!details.client) {
                     // make a secure json socket using the Noise Protocol. This side is not inititator
-                    let secureSocket = noisepeer(socket, false)
+                    let secureSocket = jsonStream(noisepeer(socket, false))
 
                     secureSocket.on('end', () => {
                         console.log('ending secure socket1')
                     })
 
                     secureSocket.on('data', data => {
-                        console.log(data.toString())
+                        console.log(data)
                     })
                 }
             })
@@ -54,9 +54,9 @@ class TopLevel extends EventEmitter {
         this._swarm.join(otherPublicKeyBuffer, { lookup: true, announce: false })
         this._swarm.on('connection', (socket, details) => {
             // make a secure json socket using the Noise Protocol. This side is initiator
-            let secureSocket = noisepeer(socket, true)
+            let secureSocket = jsonStream(noisepeer(socket, true))
 
-            secureSocket.write('Hello world')
+            secureSocket.write({ hello: 'world' })
         })
 
     }
