@@ -8,8 +8,6 @@ let toplevelObject = new TopLevel(pathName)
 toplevelObject.start()
 
 toplevelObject.on('ready', () => {
-    console.log('Ready now!')
-
     if (knowsOtherPublicKey) {
         console.log('inviting')
         let otherPublicKey = process.argv[3].toString('hex')
