@@ -20,6 +20,7 @@
     "duplex-json-stream": "^1.0.1",
     "hypercore": "^8.9.0",
     "hyperswarm": "^2.7.1",
-    "noise-peer": "^1.1.0"
+    "noise-peer": "^1.1.0",
+    "uuid": "^3.4.0"
   }
 }
