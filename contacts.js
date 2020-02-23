@@ -4,10 +4,10 @@ class Contacts {
     constructor(name) {
         this._name = name
         this._filepath = './persistence/' + name + '.json'
-        this._contacts = this.read()
+        this._contacts = this._read()
     }
 
-    read() {
+    _read() {
         //TODO: Add decryption
         try {
             return JSON.parse(fs.readFileSync(this._filepath))
@@ -23,10 +23,15 @@ class Contacts {
         fs.writeFileSync(this._filepath, JSON.stringify(this._contacts))
     }
 
-    update(key, value) {
-        this._contacts[key] = value
+    persist(pk, otherChatID, ownChatID, sharedSymKey) {
+        this._contacts[pk] = {
+            ownChatID: ownChatID,
+            otherChatID: otherChatID,
+            symKey: sharedSymKey
+        }
         this._write()
     }
+
 }
 
 module.exports = Contacts

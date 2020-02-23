@@ -7,7 +7,7 @@
         {
             "type": "node",
             "request": "launch",
-            "name": "Launch mainA",
+            "name": "Launch main w pk",
             "skipFiles": [
                 "<node_internals>/**"
             ],
@@ -16,6 +16,18 @@
                 "A",
                 "ff1931feba2b2f5ab668b9f1965f5134a72766e002043faa226c1eae28234b82"
             ]
-        }
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Launch main w/o pk",
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "program": "${workspaceFolder}/main.js",
+            "args": [
+                "A"
+            ]
+        },
     ]
 }
