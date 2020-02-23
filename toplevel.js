@@ -4,7 +4,7 @@ const hypercore = require('hypercore')
 const hyperswarm = require('hyperswarm')
 const noisepeer = require('noise-peer')
 const uuid = require('uuid')
-const fs = require('fs')
+const Contacts = require('./contacts')
 
 function generateSymKey() {
     //TODO: Should instead be generated based on some symmetric crypto (sodium-native)
@@ -20,32 +20,9 @@ class TopLevel extends EventEmitter {
     constructor(name) {
         super()
         this._name = name
-        this._contactsFilePath = './persistence/' + name + '.json'
-        this._contacts = this._readContacts()
+        this._contacts = new Contacts(name)
         this._swarm = hyperswarm()
         this._feed = hypercore('./feeds/' + name, { valueEncoding: 'json' })
-    }
-
-    // TODO: Put persistence into own module?
-    _readContacts() {
-        //TODO: Add decryption
-        try {
-            return JSON.parse(fs.readFileSync(this._contactsFilePath))
-        } catch {
-            // file is not created. Write an empty dict to file
-            fs.writeFileSync(this._contactsFilePath, JSON.stringify({}))
-            return JSON.parse(fs.readFileSync(this._contactsFilePath))
-        }
-    }
-
-    _writeContacts() {
-        //TODO: Add encryption
-        fs.writeFileSync(this._contactsFilePath, JSON.stringify(this._contacts))
-    }
-
-    _updateAndPersistContacts(key, value) {
-        this._contacts[key] = value
-        this._writeContacts()
     }
 
     start() {
@@ -74,7 +51,7 @@ class TopLevel extends EventEmitter {
 
                             secureSocket.write(inviteResponse)
 
-                            this._updateAndPersistContacts(message.senderPublicKey, {
+                            this._contacts.update(message.senderPublicKey, {
                                 ownChatID: chatID,
                                 otherChatID: message.chatID,
                                 symKey: message.sharedSymKey,
@@ -111,7 +88,7 @@ class TopLevel extends EventEmitter {
             secureSocket.on('data', message => {
                 if (message.type === 'inviteResponse') {
                     // persist symKey, chatID_A and chatID_B under other 
-                    this._updateAndPersistContacts(message.senderPublicKey, {
+                    this._contacts.update(message.senderPublicKey, {
                         ownChatID: chatID,
                         otherChatID: message.chatID,
                         symKey: sharedSymKey
@@ -125,7 +102,7 @@ class TopLevel extends EventEmitter {
     }
 
     sendMessageTo(name, message) {
-        this.emit('message', name, message)
+
     }
 
     join() {
