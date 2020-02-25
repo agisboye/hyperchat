@@ -36,7 +36,7 @@ class Contacts {
         return this._contacts[pk].symKey
     }
 
-    getchatIDForPublicKey(pk) {
+    getChatIDForPublicKey(pk) {
         return this._contacts[pk].otherChatID
     }
 

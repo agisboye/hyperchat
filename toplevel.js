@@ -6,6 +6,7 @@ const noisepeer = require('noise-peer')
 const uuid = require('uuid')
 const Contacts = require('./contacts')
 const crypto = require('./crypto')
+const pump = require('pump')
 
 function generateChatID() {
     return uuid()
@@ -18,7 +19,9 @@ class TopLevel extends EventEmitter {
         this._name = name
         this._contacts = new Contacts(name)
         this._swarm = hyperswarm()
-        this._feed = hypercore('./feeds/' + name, { valueEncoding: 'json' })
+        this._feedPath = './feeds/' + name + '/'
+        this._feed = hypercore(this._feedPath + 'own', { valueEncoding: 'json' })
+        this._replicates = []
     }
 
     start() {
@@ -61,6 +64,7 @@ class TopLevel extends EventEmitter {
                 if (message.type === 'inviteResponse') {
                     // persist the new contact info 
                     this._contacts.persist(message.senderPublicKey, message.chatID, chatID, sharedSymKey)
+                    this._initReplicateFor(message.senderPublicKey)
                     // Callback with no error
                     cb(null)
                 }
@@ -81,19 +85,25 @@ class TopLevel extends EventEmitter {
 
             secureSocket.write(inviteResponse)
             this._contacts.persist(message.senderPublicKey, message.chatID, chatID, message.sharedSymKey)
+            this._initReplicateFor(message.senderPublicKey)
         }
+    }
+
+    _initReplicateFor(otherPublicKey)  {
+        // Setup to replicate feed of other peer
+        let otherFeedKeyBuffer = Buffer.from(otherPublicKey, 'hex')
+        let otherFeed = hypercore(this._feedPath + otherPublicKey, otherFeedKeyBuffer, {valueEncoding: 'json'})
+        this._replicates.push(otherFeed)
     }
 
     sendMessageTo(otherPublicKey, message) {
         let sharedKey = this._contacts.getSymKeyForPublicKey(otherPublicKey)
         let encryptedMessage = crypto.getEncryptedMessage(message, sharedKey)
-        let chatID = this._contacts.getchatIDForPublicKey(otherPublicKey)
+        let chatID = this._contacts.getChatIDForPublicKey(otherPublicKey)
         let combinedMessage = {
             chatID: chatID, 
             ciphertext: encryptedMessage
         }
-
-        console.log(combinedMessage)
     }
 
     join() {
