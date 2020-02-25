@@ -8,7 +8,6 @@ toplevelObject.start()
 
 toplevelObject.on('ready', () => {
     if (knowsOtherPublicKey) {
-        console.log('inviting')
         let otherPublicKey = process.argv[3].toString('hex')
         toplevelObject.invite(otherPublicKey, (err) => {
 

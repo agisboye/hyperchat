@@ -27,7 +27,7 @@ class TopLevel extends EventEmitter {
     start() {
         this._feed.ready(() => {
             // Is used so that other party knows how under what public key to discover you. 
-            console.log('pk=', this._feed.key.toString('hex'))
+            console.log('> ' + this._name + " is ready. pk=", this._feed.key.toString('hex'))
             // Announce yourself under your own public key
             this._swarm.join(this._feed.key, { lookup: false, announce: true })
             this._swarm.on('connection', (socket, details) => {
@@ -43,6 +43,15 @@ class TopLevel extends EventEmitter {
 
     //TODO: Add timeout error to callback. Card: https://github.com/agisboye/hyperchat-poc/projects/1#card-33617552
     invite(otherPublicKey, cb) {
+        // Check if 'otherPublicKey' has already been invited
+        if (this._contacts.containsPublicKey(otherPublicKey)) {
+            // cb with null-error
+            cb(null)
+            return
+        }
+
+        console.log('> ' + this._name + " is inviting...")
+
         let otherPublicKeyBuffer = Buffer.from(otherPublicKey, 'hex')
         this._swarm.join(otherPublicKeyBuffer, { lookup: true, announce: false })
         this._swarm.on('connection', (socket, details) => {
@@ -58,16 +67,24 @@ class TopLevel extends EventEmitter {
                 sharedSymKey: sharedSymKey,
                 chatID: chatID
             }
+
+            console.log('> ' + this._name + " writes invite-message")
             secureSocket.write(inviteMessage)
 
             secureSocket.on('data', message => {
                 if (message.type === 'inviteResponse') {
+                    console.log('> ' + this._name + " received invite response")
                     // persist the new contact info 
                     this._contacts.persist(message.senderPublicKey, message.chatID, chatID, sharedSymKey)
-                    this._initReplicateFor(message.senderPublicKey)
+                    this._initReplicateFor(message.senderPublicKey, secureSocket, true)
+                    
+                    // setup replication for own feed
+                    pump(secureSocket, this._feed.replicate(true, {live: true}), secureSocket, err => {
+                        if (err) throw err
+                    })
                     // Callback with no error
                     cb(null)
-                }
+                } 
             })
         })
     }
@@ -76,6 +93,9 @@ class TopLevel extends EventEmitter {
         if (message.type === 'inviteRequest') {
             //TODO: If message should be signed by sender and checked here. (sodium-native). Maybe signed with senders feed private key?
             // Card: https://github.com/agisboye/hyperchat-poc/projects/1#card-33617786
+
+            console.log('> ' + this._name + " received inviteRequest")
+
             let chatID = generateChatID()
             let inviteResponse = {
                 type: 'inviteResponse',
@@ -85,25 +105,40 @@ class TopLevel extends EventEmitter {
 
             secureSocket.write(inviteResponse)
             this._contacts.persist(message.senderPublicKey, message.chatID, chatID, message.sharedSymKey)
-            this._initReplicateFor(message.senderPublicKey)
+            this._initReplicateFor(message.senderPublicKey, secureSocket, false)
         }
     }
 
-    _initReplicateFor(otherPublicKey)  {
+    _initReplicateFor(otherPublicKey, socket, isInstantiator)  {
         // Setup to replicate feed of other peer
         let otherFeedKeyBuffer = Buffer.from(otherPublicKey, 'hex')
         let otherFeed = hypercore(this._feedPath + otherPublicKey, otherFeedKeyBuffer, {valueEncoding: 'json'})
+
+        console.log('> ' + this._name + " initReplicate for " + otherPublicKey)
         this._replicates.push(otherFeed)
+
+        // setup replication
+        pump(socket, otherFeed.replicate(false, {live: true}), socket, err => {
+            if (err) throw err
+        })
+
+        //setup readstream to follow output
+        console.log('> ' + this._name + " created read stream on other feed")
+        otherFeed.createReadStream({live: isInstantiator}).on('data', data => {
+            console.log(data)
+        })
     }
 
     sendMessageTo(otherPublicKey, message) {
         let sharedKey = this._contacts.getSymKeyForPublicKey(otherPublicKey)
         let encryptedMessage = crypto.getEncryptedMessage(message, sharedKey)
         let chatID = this._contacts.getChatIDForPublicKey(otherPublicKey)
-        let combinedMessage = {
+
+        console.log('> ' + this._name + " appends message")
+        this._feed.append({
             chatID: chatID, 
             ciphertext: encryptedMessage
-        }
+        })
     }
 
     join() {

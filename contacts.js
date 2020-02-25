@@ -40,6 +40,10 @@ class Contacts {
         return this._contacts[pk].otherChatID
     }
 
+    containsPublicKey(pk) {
+        return this._contacts.hasOwnProperty(pk)
+    }
+
 }
 
 module.exports = Contacts
