@@ -8,7 +8,7 @@ class Contacts {
     }
 
     _read() {
-        //TODO: Add decryption
+        //TODO: Add decryption. Card: https://github.com/agisboye/hyperchat-poc/projects/1#card-33617302
         try {
             return JSON.parse(fs.readFileSync(this._filepath))
         } catch {
@@ -19,7 +19,7 @@ class Contacts {
     }
 
     _write() {
-        //TODO: Add encryption
+        //TODO: Add encryption. Card: https://github.com/agisboye/hyperchat-poc/projects/1#card-33617302
         fs.writeFileSync(this._filepath, JSON.stringify(this._contacts))
     }
 

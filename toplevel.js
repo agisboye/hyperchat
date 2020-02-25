@@ -42,7 +42,7 @@ class TopLevel extends EventEmitter {
         })
     }
 
-    //TODO: Add timeout error to callback
+    //TODO: Add timeout error to callback. Card: https://github.com/agisboye/hyperchat-poc/projects/1#card-33617552
     invite(otherPublicKey, cb) {
         let otherPublicKeyBuffer = Buffer.from(otherPublicKey, 'hex')
         this._swarm.join(otherPublicKeyBuffer, { lookup: true, announce: false })
@@ -50,7 +50,7 @@ class TopLevel extends EventEmitter {
             // make a secure json socket using the Noise Protocol. This side is initiator
             let secureSocket = jsonStream(noisepeer(socket, true))
 
-            //TODO: Message should be signed by sender to prove authentication (sodium-native). Maybe sign using own feed private key?
+            //TODO: Should message be signed by sender to prove authentication (sodium-native)? Maybe sign using own feed private key?
             let sharedSymKey = generateSymKey()
             let chatID = generateChatID()
             let inviteMessage = {
@@ -74,7 +74,8 @@ class TopLevel extends EventEmitter {
 
     _handleMessageAtStartAsServer(message, feed, secureSocket) {
         if (message.type === 'inviteRequest') {
-            //TODO: Message should be signed by sender and checked here. (sodium-native). Maybe signed with senders feed private key?
+            //TODO: If message should be signed by sender and checked here. (sodium-native). Maybe signed with senders feed private key?
+            // Card: https://github.com/agisboye/hyperchat-poc/projects/1#card-33617786
             let chatID = generateChatID()
             let inviteResponse = {
                 type: 'inviteResponse',
