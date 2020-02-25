@@ -31,11 +31,7 @@ function tryDecryptMessage(nonceAndCipherText, key) {
     }
 }
 
-let symKey = "this is a very secure secret key"
-let encrypted = getEncryptedMessage("hello world", symKey)
-
-try {
-    console.log(tryDecryptMessage(encrypted, symKey))
-} catch (err) {
-    console.log(err)
+module.exports = {
+    getEncryptedMessage: getEncryptedMessage,
+    tryDecryptMessage: tryDecryptMessage,
 }
