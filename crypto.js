@@ -1,5 +1,15 @@
 const sodium = require('sodium-native')
 
+function genereateSymKeyBuffer() {
+    let key = sodium.sodium_malloc(sodium.crypto_secretbox_KEYBYTES)
+    sodium.randombytes_buf(key)
+    return key
+}
+
+function generateSymKey() {
+    return genereateSymKeyBuffer().toString('hex')
+}
+
 function getEncryptedMessage(plainMessage, key) {
     let ciphertext = Buffer.alloc(plainMessage.length + sodium.crypto_secretbox_MACBYTES)
     let message = Buffer.from(plainMessage)
@@ -14,7 +24,7 @@ function getEncryptedMessage(plainMessage, key) {
 }
 
 function tryDecryptMessage(nonceAndCipherText, key) {
-    // nonce is always prepended to ciphertext. Copy the first part into 'nonce'
+    // nonce is always prepended to ciphertext. Copy the first part into 'nonce' and second part into 'ciphertext'
     let nonce = Buffer.alloc(sodium.crypto_secretbox_NONCEBYTES)
     let ciphertext = Buffer.alloc(nonceAndCipherText.length - nonce.length)
     nonceAndCipherText.copy(nonce, 0, 0, sodium.crypto_secretbox_NONCEBYTES)
@@ -34,4 +44,5 @@ function tryDecryptMessage(nonceAndCipherText, key) {
 module.exports = {
     getEncryptedMessage: getEncryptedMessage,
     tryDecryptMessage: tryDecryptMessage,
+    generateSymKey: generateSymKey
 }

@@ -5,11 +5,7 @@ const hyperswarm = require('hyperswarm')
 const noisepeer = require('noise-peer')
 const uuid = require('uuid')
 const Contacts = require('./contacts')
-
-function generateSymKey() {
-    //TODO: Should instead be generated based on some symmetric crypto (sodium-native)
-    return uuid()
-}
+const crypto = require('./crypto')
 
 function generateChatID() {
     return uuid()
@@ -51,7 +47,7 @@ class TopLevel extends EventEmitter {
             let secureSocket = jsonStream(noisepeer(socket, true))
 
             //TODO: Should message be signed by sender to prove authentication (sodium-native)? Maybe sign using own feed private key?
-            let sharedSymKey = generateSymKey()
+            let sharedSymKey = crypto.generateSymKey()
             let chatID = generateChatID()
             let inviteMessage = {
                 type: 'inviteRequest',
