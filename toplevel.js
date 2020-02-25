@@ -36,7 +36,7 @@ class TopLevel extends EventEmitter {
                     let secureSocket = noisepeer(socket, false)
                     let secureJSONSocket = jsonStream(secureSocket)
                     //TODO: Refactor _handleMessageAtStartAsServer into 2 'data' handlers - one for setting up the feed replication and one for responding to the invitation + persistence
-                    secureJSONSocket.on('data', message => { this._handleMessageAtStartAsServer(message, this._feed, secureSocket) })
+                    secureJSONSocket.on('data', message => { this._handleInvitationRequest(message, secureJSONSocket) })
                 }
             })
             this.emit('ready')
@@ -79,7 +79,6 @@ class TopLevel extends EventEmitter {
                     console.log('> ' + this._name + " received invite response")
                     // persist the new contact info 
                     this._contacts.persist(message.senderPublicKey, message.chatID, chatID, sharedSymKey)
-                    this._initReplicateFor(message.senderPublicKey, secureSocket, true)
                     
                     // Callback with no error
                     cb(null)
@@ -89,7 +88,7 @@ class TopLevel extends EventEmitter {
         })
     }
 
-    _handleMessageAtStartAsServer(message, feed, secureSocket) {
+    _handleInvitationRequest(message, secureJSONSocket) {
         if (message.type === 'inviteRequest') {
             //TODO: If message should be signed by sender and checked here. (sodium-native). Maybe signed with senders feed private key?
             // Card: https://github.com/agisboye/hyperchat-poc/projects/1#card-33617786
@@ -99,13 +98,12 @@ class TopLevel extends EventEmitter {
             let chatID = generateChatID()
             let inviteResponse = {
                 type: 'inviteResponse',
-                senderPublicKey: feed.key.toString('hex'),
+                senderPublicKey: this._feed.key.toString('hex'),
                 chatID: chatID
             }
-            let secureJSONSocket = jsonStream(secureSocket)
             secureJSONSocket.write(inviteResponse)
+
             this._contacts.persist(message.senderPublicKey, message.chatID, chatID, message.sharedSymKey)
-            this._initReplicateFor(message.senderPublicKey, secureSocket, false)
         }
     }
 
@@ -114,7 +112,7 @@ class TopLevel extends EventEmitter {
         let otherFeedKeyBuffer = Buffer.from(otherPublicKey, 'hex')
         let otherFeed = hypercore(this._feedPath + otherPublicKey, otherFeedKeyBuffer, {valueEncoding: 'json'})
 
-        console.log('> ' + this._name + ". instantiator: " + isInstantiator + " initReplicate for " + otherPublicKey)
+        console.log('> ' + this._name + ". instantiator: " + isInstantiator + ". initReplicate for " + otherPublicKey)
         this._replicates.push(otherFeed)
 
         // setup replication

@@ -2,6 +2,7 @@ const hypercore = require('hypercore')
 const net = require('net')
 const pump = require('pump')
 const noisepeer = require('noise-peer')
+const jsonStream = require('duplex-json-stream')
 
 let localFeed = hypercore('./tmp/testing', {valueEncoding: 'json'})
 localFeed.ready(() => {
@@ -10,7 +11,10 @@ localFeed.ready(() => {
     remoteFeed.ready(() => {
         const server = net.createServer(socket => {
             let noiseSocket = noisepeer(socket, false)
+            let jsonsocket = jsonStream(noiseSocket)
+
             pump(noiseSocket, remoteFeed.replicate(false, {live: true}), noiseSocket)
+            jsonsocket.on('data', data => console.log(data))
         })
         server.listen(3000)
         
