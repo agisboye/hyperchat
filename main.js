@@ -11,7 +11,10 @@ toplevelObject.on('ready', () => {
         console.log('inviting')
         let otherPublicKey = process.argv[3].toString('hex')
         toplevelObject.invite(otherPublicKey, (err) => {
-            console.log(err)
+
+            // try to send a message to B
+            let message = "One small step for man, one giant leap for HyperChat"
+            toplevelObject.sendMessageTo(otherPublicKey, message)
         })
     }
 })

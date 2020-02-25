@@ -84,8 +84,16 @@ class TopLevel extends EventEmitter {
         }
     }
 
-    sendMessageTo(name, message) {
-        
+    sendMessageTo(otherPublicKey, message) {
+        let sharedKey = this._contacts.getSymKeyForPublicKey(otherPublicKey)
+        let encryptedMessage = crypto.getEncryptedMessage(message, sharedKey)
+        let chatID = this._contacts.getchatIDForPublicKey(otherPublicKey)
+        let combinedMessage = {
+            chatID: chatID, 
+            ciphertext: encryptedMessage
+        }
+
+        console.log(combinedMessage)
     }
 
     join() {

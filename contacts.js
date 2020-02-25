@@ -32,6 +32,14 @@ class Contacts {
         this._write()
     }
 
+    getSymKeyForPublicKey(pk) {
+        return this._contacts[pk].symKey
+    }
+
+    getchatIDForPublicKey(pk) {
+        return this._contacts[pk].otherChatID
+    }
+
 }
 
 module.exports = Contacts

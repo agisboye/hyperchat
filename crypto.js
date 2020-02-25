@@ -19,7 +19,7 @@ function getEncryptedMessageBuffer(plainMessage, key) {
     let nonce = Buffer.alloc(sodium.crypto_secretbox_NONCEBYTES)
     sodium.randombytes_buf(nonce)
     let secretKey = sodium.sodium_malloc(sodium.crypto_secretbox_KEYBYTES)
-    secretKey.write(key, 'utf-8')
+    secretKey.write(key, 'hex')
     sodium.crypto_secretbox_easy(ciphertext, message, nonce, secretKey)
     // Prepend nonce to ciphertext
     let nonceAndCipher = Buffer.concat([nonce, ciphertext])
@@ -47,12 +47,12 @@ function tryDecryptMessageBuffer(nonceAndCipherText, key) {
 
     let plainText = Buffer.alloc(ciphertext.length - sodium.crypto_secretbox_MACBYTES)
     let secretKey = sodium.sodium_malloc(sodium.crypto_secretbox_KEYBYTES)
-    secretKey.write(key, 'utf-8')
+    secretKey.write(key, 'hex')
 
     if (sodium.crypto_secretbox_open_easy(plainText, ciphertext, nonce, secretKey)) {
         return plainText.toString('utf-8')
     } else {
-        throw Error('tryDecryptMessage failed')
+        throw Error('tryDecryptMessageBuffer failed')
     }
 }
 
@@ -60,7 +60,10 @@ function tryDecryptMessageBuffer(nonceAndCipherText, key) {
 /// key: string (utf-8)
 /// returns: string (utf-8)
 /// Throws on unsuccessful decryption
-
+function tryDecryptMessage(nonceAndCipherText, key) {
+    let nonceAndCipherBuffer = Buffer.from(nonceAndCipherText)
+    return tryDecryptMessageBuffer(nonceAndCipherBuffer, key)
+}
 
 
 
