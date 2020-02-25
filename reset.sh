@@ -2,5 +2,4 @@
 rm ./persistence/*
 
 # delete all folders in feeds
-
 rm -r ./feeds/*

@@ -33,8 +33,10 @@ class TopLevel extends EventEmitter {
             this._swarm.on('connection', (socket, details) => {
                 if (!details.client) {
                     // make a secure json socket using the Noise Protocol. This side is not inititator
-                    let secureSocket = jsonStream(noisepeer(socket, false))
-                    secureSocket.on('data', message => { this._handleMessageAtStartAsServer(message, this._feed, secureSocket) })
+                    let secureSocket = noisepeer(socket, false)
+                    let secureJSONSocket = jsonStream(secureSocket)
+                    //TODO: Refactor _handleMessageAtStartAsServer into 2 'data' handlers - one for setting up the feed replication and one for responding to the invitation + persistence
+                    secureJSONSocket.on('data', message => { this._handleMessageAtStartAsServer(message, this._feed, secureSocket) })
                 }
             })
             this.emit('ready')
@@ -56,7 +58,8 @@ class TopLevel extends EventEmitter {
         this._swarm.join(otherPublicKeyBuffer, { lookup: true, announce: false })
         this._swarm.on('connection', (socket, details) => {
             // make a secure json socket using the Noise Protocol. This side is initiator
-            let secureSocket = jsonStream(noisepeer(socket, true))
+            let secureSocket = noisepeer(socket, true)
+            let secureJSONSocket = jsonStream(secureSocket)
 
             //TODO: Should message be signed by sender to prove authentication (sodium-native)? Maybe sign using own feed private key?
             let sharedSymKey = crypto.generateSymKey()
@@ -69,21 +72,18 @@ class TopLevel extends EventEmitter {
             }
 
             console.log('> ' + this._name + " writes invite-message")
-            secureSocket.write(inviteMessage)
+            secureJSONSocket.write(inviteMessage)
 
-            secureSocket.on('data', message => {
+            secureJSONSocket.on('data', message => {
                 if (message.type === 'inviteResponse') {
                     console.log('> ' + this._name + " received invite response")
                     // persist the new contact info 
                     this._contacts.persist(message.senderPublicKey, message.chatID, chatID, sharedSymKey)
                     this._initReplicateFor(message.senderPublicKey, secureSocket, true)
                     
-                    // setup replication for own feed
-                    pump(secureSocket, this._feed.replicate(true, {live: true}), secureSocket, err => {
-                        if (err) throw err
-                    })
                     // Callback with no error
                     cb(null)
+                    return
                 } 
             })
         })
@@ -102,8 +102,8 @@ class TopLevel extends EventEmitter {
                 senderPublicKey: feed.key.toString('hex'),
                 chatID: chatID
             }
-
-            secureSocket.write(inviteResponse)
+            let secureJSONSocket = jsonStream(secureSocket)
+            secureJSONSocket.write(inviteResponse)
             this._contacts.persist(message.senderPublicKey, message.chatID, chatID, message.sharedSymKey)
             this._initReplicateFor(message.senderPublicKey, secureSocket, false)
         }
@@ -114,17 +114,17 @@ class TopLevel extends EventEmitter {
         let otherFeedKeyBuffer = Buffer.from(otherPublicKey, 'hex')
         let otherFeed = hypercore(this._feedPath + otherPublicKey, otherFeedKeyBuffer, {valueEncoding: 'json'})
 
-        console.log('> ' + this._name + " initReplicate for " + otherPublicKey)
+        console.log('> ' + this._name + ". instantiator: " + isInstantiator + " initReplicate for " + otherPublicKey)
         this._replicates.push(otherFeed)
 
         // setup replication
-        pump(socket, otherFeed.replicate(false, {live: true}), socket, err => {
+        pump(socket, otherFeed.replicate(isInstantiator, {live: true}), socket, err => {
             if (err) throw err
         })
 
         //setup readstream to follow output
         console.log('> ' + this._name + " created read stream on other feed")
-        otherFeed.createReadStream({live: isInstantiator}).on('data', data => {
+        otherFeed.createReadStream({live: true}).on('data', data => {
             console.log(data)
         })
     }
