@@ -10,7 +10,10 @@ function generateSymKey() {
     return genereateSymKeyBuffer().toString('hex')
 }
 
-function getEncryptedMessage(plainMessage, key) {
+/// plainMessage: string
+/// key: string (utf-8)
+/// returns: Buffer
+function getEncryptedMessageBuffer(plainMessage, key) {
     let ciphertext = Buffer.alloc(plainMessage.length + sodium.crypto_secretbox_MACBYTES)
     let message = Buffer.from(plainMessage)
     let nonce = Buffer.alloc(sodium.crypto_secretbox_NONCEBYTES)
@@ -23,7 +26,19 @@ function getEncryptedMessage(plainMessage, key) {
     return nonceAndCipher
 }
 
-function tryDecryptMessage(nonceAndCipherText, key) {
+/// plainMessage: string
+/// key: string (utf-8)
+/// returns: string (utf-8)
+function getEncryptedMessage(plainMessage, key) {
+    return getEncryptedMessageBuffer(plainMessage, key).toString('utf-8')
+}
+
+
+/// nonceAndCipherText: Buffer
+/// key: string (utf-8)
+/// returns: string (utf-8)
+/// Throws on unsuccessful decryption
+function tryDecryptMessageBuffer(nonceAndCipherText, key) {
     // nonce is always prepended to ciphertext. Copy the first part into 'nonce' and second part into 'ciphertext'
     let nonce = Buffer.alloc(sodium.crypto_secretbox_NONCEBYTES)
     let ciphertext = Buffer.alloc(nonceAndCipherText.length - nonce.length)
@@ -40,6 +55,16 @@ function tryDecryptMessage(nonceAndCipherText, key) {
         throw Error('tryDecryptMessage failed')
     }
 }
+
+/// nonceAndCipherText: string(utf-8)
+/// key: string (utf-8)
+/// returns: string (utf-8)
+/// Throws on unsuccessful decryption
+
+
+
+
+
 
 module.exports = {
     getEncryptedMessage: getEncryptedMessage,
