@@ -21,7 +21,8 @@ class TopLevel extends EventEmitter {
         this._swarm = hyperswarm()
         this._feedPath = './feeds/' + name + '/'
         this._feed = hypercore(this._feedPath + 'own', { valueEncoding: 'json' })
-        this._replicates = []
+        //TODO: Add persistence to _replicas
+        this._replicas = []
     }
 
     start() {
@@ -77,9 +78,9 @@ class TopLevel extends EventEmitter {
             secureJSONSocket.on('data', message => {
                 if (message.type === 'inviteResponse') {
                     console.log('> ' + this._name + " received invite response")
-                    // persist the new contact info 
+                    // persist the new contact info and replicate
                     this._contacts.persist(message.senderPublicKey, message.chatID, chatID, sharedSymKey)
-                    
+                    this._initReplicaFor(message.senderPublicKey)
                     // Callback with no error
                     cb(null)
                     return
@@ -104,27 +105,17 @@ class TopLevel extends EventEmitter {
             secureJSONSocket.write(inviteResponse)
 
             this._contacts.persist(message.senderPublicKey, message.chatID, chatID, message.sharedSymKey)
+            this._initReplicaFor(message.senderPublicKey)
         }
     }
 
-    _initReplicateFor(otherPublicKey, socket, isInstantiator)  {
+    _initReplicaFor(otherPublicKey)  {
         // Setup to replicate feed of other peer
         let otherFeedKeyBuffer = Buffer.from(otherPublicKey, 'hex')
         let otherFeed = hypercore(this._feedPath + otherPublicKey, otherFeedKeyBuffer, {valueEncoding: 'json'})
 
-        console.log('> ' + this._name + ". instantiator: " + isInstantiator + ". initReplicate for " + otherPublicKey)
-        this._replicates.push(otherFeed)
-
-        // setup replication
-        pump(socket, otherFeed.replicate(isInstantiator, {live: true}), socket, err => {
-            if (err) throw err
-        })
-
-        //setup readstream to follow output
-        console.log('> ' + this._name + " created read stream on other feed")
-        otherFeed.createReadStream({live: true}).on('data', data => {
-            console.log(data)
-        })
+        console.log('> ' + this._name + " initReplicate for " + otherPublicKey)
+        this._replicas.push(otherFeed)
     }
 
     sendMessageTo(otherPublicKey, message) {
@@ -139,8 +130,20 @@ class TopLevel extends EventEmitter {
         })
     }
 
-    join() {
+    /// Join all peers in contact list
+    joinAll() {
+        this._contacts.getAllPublicKeys().forEach(this._join)
+    }
 
+    _join(pk) {
+        let publicKeyBuffer = Buffer.from(pk, 'hex')
+        // join other peers public key. 'announce' is true because 'this' can be relay for others
+        this._swarm.join(publicKeyBuffer, {lookup: true, announce: true})
+        this._swarm.on('connection', (socket, details) => {
+            // the client is the initiator, the server is not. 
+            let secureSocket = noisepeer(socket, details.client)
+            pump(secureSocket, remoteFeed.replicate(details.client, {live: true}), secureSocket)
+        })
     }
 
     leave() {

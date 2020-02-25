@@ -44,6 +44,10 @@ class Contacts {
         return this._contacts.hasOwnProperty(pk)
     }
 
+    getAllPublicKeys() {
+        return Object.keys(this._contacts)
+    }
+
 }
 
 module.exports = Contacts
