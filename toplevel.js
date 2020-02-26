@@ -31,16 +31,17 @@ class TopLevel extends EventEmitter {
             console.log('> ' + this._name + " is ready. pk=", this._feed.key.toString('hex'))
             // Announce yourself under your own public key
             this._swarm.join(this._feed.key, { lookup: false, announce: true })
+            // Announce that own feed is ready and own public key is joined 
+            this.emit('ready')
+
             this._swarm.on('connection', (socket, details) => {
                 if (!details.client) {
                     // make a secure json socket using the Noise Protocol. This side is not inititator
-                    let secureSocket = noisepeer(socket, false)
-                    let secureJSONSocket = jsonStream(secureSocket)
+                    let secureJSONSocket = jsonStream(noisepeer(socket, false))
                     //TODO: Refactor _handleMessageAtStartAsServer into 2 'data' handlers - one for setting up the feed replication and one for responding to the invitation + persistence
                     secureJSONSocket.on('data', message => { this._handleInvitationRequest(message, secureJSONSocket) })
                 }
             })
-            this.emit('ready')
         })
     }
 
@@ -59,8 +60,7 @@ class TopLevel extends EventEmitter {
         this._swarm.join(otherPublicKeyBuffer, { lookup: true, announce: false })
         this._swarm.on('connection', (socket, details) => {
             // make a secure json socket using the Noise Protocol. This side is initiator
-            let secureSocket = noisepeer(socket, true)
-            let secureJSONSocket = jsonStream(secureSocket)
+            let secureJSONSocket = jsonStream(noisepeer(socket, true))
 
             //TODO: Should message be signed by sender to prove authentication (sodium-native)? Maybe sign using own feed private key?
             let sharedSymKey = crypto.generateSymKey()
@@ -81,9 +81,8 @@ class TopLevel extends EventEmitter {
                     // persist the new contact info and replicate
                     this._contacts.persist(message.senderPublicKey, message.chatID, chatID, sharedSymKey)
                     this._initReplicaFor(message.senderPublicKey)
-                    // Callback with no error
+                    // callback with null-error
                     cb(null)
-                    return
                 } 
             })
         })
@@ -114,7 +113,7 @@ class TopLevel extends EventEmitter {
         let otherFeedKeyBuffer = Buffer.from(otherPublicKey, 'hex')
         let otherFeed = hypercore(this._feedPath + otherPublicKey, otherFeedKeyBuffer, {valueEncoding: 'json'})
 
-        console.log('> ' + this._name + " initReplicate for " + otherPublicKey)
+        console.log('> ' + this._name + " initReplicate for " + otherPublicKey.substring(0,7))
         this._replicas.push(otherFeed)
     }
 
@@ -132,17 +131,19 @@ class TopLevel extends EventEmitter {
 
     /// Join all peers in contact list
     joinAll() {
-        this._contacts.getAllPublicKeys().forEach(this._join)
+        this._contacts.getAllPublicKeys().forEach((pk) => this._join(pk))
     }
 
     _join(pk) {
+        //TODO: add check to see if 'pk' is already joined?
+        console.log('> ' + this._name + ' joining ' + pk.substring(0, 7) + "...")
         let publicKeyBuffer = Buffer.from(pk, 'hex')
         // join other peers public key. 'announce' is true because 'this' can be relay for others
         this._swarm.join(publicKeyBuffer, {lookup: true, announce: true})
         this._swarm.on('connection', (socket, details) => {
             // the client is the initiator, the server is not. 
-            let secureSocket = noisepeer(socket, details.client)
-            pump(secureSocket, remoteFeed.replicate(details.client, {live: true}), secureSocket)
+            console.log('> ' + this._name + ' joined ' + pk.substring(0, 7) + "...")
+            pump(socket, this._feed.replicate(details.client, {live: true}), socket)
         })
     }
 

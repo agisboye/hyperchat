@@ -7,7 +7,7 @@ let toplevelObject = new TopLevel(name)
 toplevelObject.start()
 
 toplevelObject.on('ready', () => {
-    toplevelObject.join()
+    toplevelObject.joinAll()
     if (knowsOtherPublicKey) {
         let otherPublicKey = process.argv[3].toString('hex')
         toplevelObject.invite(otherPublicKey, (err) => {

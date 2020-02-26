@@ -11,23 +11,33 @@ localFeed.ready(() => {
     remoteFeed.ready(() => {
         const server = net.createServer(socket => {
             let noiseSocket = noisepeer(socket, false)
-            let jsonsocket = jsonStream(noiseSocket)
-
+            pump(noiseSocket, process.stdout)
             pump(noiseSocket, remoteFeed.replicate(false, {live: true}), noiseSocket)
-            jsonsocket.on('data', data => console.log(data))
+            //jsonsocket.on('data', data => console.log(data))
         })
         server.listen(3000)
         
         let socket = noisepeer(net.connect(3000), true)
-        pump(socket, localFeed.replicate(true, {live: true}), socket)
-
+        pump(socket, localFeed.replicate(true, {live: true}), socket, err => {
+            if (err) throw err
+        })
+        
+        socket.write(Buffer.from('hello world', 'hex'))
         remoteFeed.createReadStream({live: true}).on('data', console.log)
 
         process.stdin.on('data', data => {
-            let message = {
-                message: data.toString()
+            let prefix = data.toString().substring(0,1)
+            if (prefix === 's') {
+                // send as regular message
+                socket.write(data)
+            } else {
+                //append to feed
+                let message = {
+                    message: data.toString()
+                }
+                localFeed.append(message)
             }
-            localFeed.append(message)
+            
         })
         
     })    
