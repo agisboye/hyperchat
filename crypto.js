@@ -1,15 +1,16 @@
 const sodium = require('sodium-native')
 
 const HYPERCORE_DISCOVERYKEY_SIZE = 32
+
 /// Returns (pk, sk)
 function _generateKeyPair() {
     let pk = Buffer.alloc(sodium.crypto_kx_PUBLICKEYBYTES)
     let sk = Buffer.alloc(sodium.crypto_kx_SECRETKEYBYTES)
     sodium.crypto_kx_keypair(pk, sk)
-    return {pk, sk}
+    return { pk, sk }
 }
 
-function _generateNonce() {
+function _generateNonce() {
     let nonce = Buffer.alloc(sodium.crypto_secretbox_NONCEBYTES)
     sodium.randombytes_buf(nonce)
     return nonce
@@ -54,7 +55,7 @@ function _splitPeerID(peerID) {
     let publicKey = Buffer.alloc(sodium.crypto_kx_PUBLICKEYBYTES)
     peerID.copy(discoveryKey, 0, 0, HYPERCORE_DISCOVERYKEY_SIZE)
     peerID.copy(publicKey, 0, HYPERCORE_DISCOVERYKEY_SIZE, peerID.length)
-    return {discoveryKey, publicKey}
+    return { discoveryKey, publicKey }
 }
 
 function _getPublicKeyFromPeerID(peerID) {
@@ -84,7 +85,7 @@ function encryptMessage(plainMessage, ownPublicKey, ownPrivateKey, otherPeerID) 
     return Buffer.concat([nonce, ciphertext])
 }
 
-function tryDecryptMessage(cipherAndNonce, ownPublicKey, ownPrivateKey, otherPeerID) {
+function decryptMessage(cipherAndNonce, ownPublicKey, ownPrivateKey, otherPeerID) {
     let otherPublicKey = _getPublicKeyFromPeerID(otherPeerID)
     let decryptionKey = _generateServerKey(ownPublicKey, ownPrivateKey, otherPublicKey)
 
@@ -96,7 +97,7 @@ function tryDecryptMessage(cipherAndNonce, ownPublicKey, ownPrivateKey, otherPee
         return plainTextBuffer
     } else {
         // Decryption failed. 
-        throw new Error("tryDecryptMessage failed.")
+        throw new Error("decryptMessage failed.")
     }
 }
 
@@ -108,10 +109,10 @@ function generateChallenge(ownSecretKey, ownPublicKey, ownPeerID, otherPeerID) {
     let { _, tx } = _generateClientKeys(ownPublicKey, ownSecretKey, otherPublicKey)
     let proof = _createChallengeProof(nonce, tx)
 
-    let message = { 
+    let message = {
         peerID: ownPeerID.toString('hex'),
-        nonce: nonce.toString('hex'), 
-        proof: proof.toString('hex') 
+        nonce: nonce.toString('hex'),
+        proof: proof.toString('hex')
     }
 
     let messageBuffer = Buffer.from(JSON.stringify(message), 'utf8')
@@ -122,13 +123,13 @@ function generateChallenge(ownSecretKey, ownPublicKey, ownPeerID, otherPeerID) {
     return ciphertext
 }
 
-function tryAnswerChallenge(ciphertext, ownPublicKey, ownSecretKey) {
+function answerChallenge(ciphertext, ownPublicKey, ownSecretKey) {
     // TODO: Check format of data (i.e. ensure everything is present and of proper length). Right now some of the calls will crash the program if someone sends us malformed data.
 
     let result = Buffer.alloc(ciphertext.length - sodium.crypto_box_SEALBYTES)
     if (sodium.crypto_box_seal_open(result, ciphertext, ownPublicKey, ownSecretKey)) {
         let data = JSON.parse(result.toString('utf8'))
-        
+
         // Verify that the sender also knows the shared secret key.
         let nonce = Buffer.from(data.nonce, 'hex')
         let proof = Buffer.from(data.proof, 'hex')
@@ -136,7 +137,7 @@ function tryAnswerChallenge(ciphertext, ownPublicKey, ownSecretKey) {
         let otherPublicKey = _getPublicKeyFromPeerID(otherPeerID)
 
         let { rx, _ } = _generateServerKey(ownPublicKey, ownSecretKey, otherPublicKey)
-        
+
         let myProof = _createChallengeProof(nonce, rx)
 
         // compare the two hashes
@@ -151,20 +152,30 @@ function tryAnswerChallenge(ciphertext, ownPublicKey, ownSecretKey) {
 
 }
 
+
+module.exports = {
+    getDiscoveryKeyFromPeerID,
+    createPeerID,
+    encryptMessage,
+    decryptMessage,
+    generateChallenge,
+    answerChallenge
+}
+
 // server
-let serverDiscoveryKey = Buffer.alloc(HYPERCORE_DISCOVERYKEY_SIZE)
-sodium.randombytes_buf(serverDiscoveryKey)
-let serverKeyPair = _generateKeyPair()
-let serverPeerID = createPeerID(serverDiscoveryKey, serverKeyPair.pk)
+// let serverDiscoveryKey = Buffer.alloc(HYPERCORE_DISCOVERYKEY_SIZE)
+// sodium.randombytes_buf(serverDiscoveryKey)
+// let serverKeyPair = _generateKeyPair()
+// let serverPeerID = createPeerID(serverDiscoveryKey, serverKeyPair.pk)
 
-// client
-let clientDiscoveryKey = Buffer.alloc(HYPERCORE_DISCOVERYKEY_SIZE)
-sodium.randombytes_buf(clientDiscoveryKey)
-let clientKeyPair = _generateKeyPair()
-let clientPeerID = createPeerID(clientDiscoveryKey, clientKeyPair.pk)
+// // client
+// let clientDiscoveryKey = Buffer.alloc(HYPERCORE_DISCOVERYKEY_SIZE)
+// sodium.randombytes_buf(clientDiscoveryKey)
+// let clientKeyPair = _generateKeyPair()
+// let clientPeerID = createPeerID(clientDiscoveryKey, clientKeyPair.pk)
 
-// client generates challenge
-let challenge = generateChallenge(clientKeyPair.sk, clientKeyPair.pk, clientPeerID, serverPeerID)
+// // client generates challenge
+// let challenge = generateChallenge(clientKeyPair.sk, clientKeyPair.pk, clientPeerID, serverPeerID)
 
-// server answers challenge
-tryAnswerChallenge(challenge, serverKeyPair.pk, serverKeyPair.sk)
+// // server answers challenge
+// answerChallenge(challenge, serverKeyPair.pk, serverKeyPair.sk)

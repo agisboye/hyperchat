@@ -4,29 +4,20 @@ const pump = require('pump')
 const hypercore = require('hypercore')
 const hyperswarm = require('hyperswarm')
 
-
 const HYPERCHAT_PROTOCOL_INVITE = "invite"
-
-/** Events
- * ready
- * invite
- * message
- */
-
-/** Invite stages
-     * 1. Waiting: (replica feed generated, keypair generated, swarm joined)
-     * 2. Done/Invite completed. The peer has started replicating our feed.
-     */
 
 class Hyperchat extends EventEmitter {
 
     constructor() {
         super()
+        this._my_keypair = {} // TODO
+
+
         this._swarm = hyperswarm()
         this._feed = hypercore(`./feeds/own`, { valueEncoding: 'json' })
         this._feeds = {}
 
-        // TODO: Persist pending invites somewhere
+        // TODO: Persist pending invites somewhere?
         // TODO: When someone starts replicating with us, remove them from the list of pending invites. Replicating with someone is how an invite is accepted.
         this._pendingInvites = new Set()
     }
@@ -43,25 +34,14 @@ class Hyperchat extends EventEmitter {
     invite(peerId) {
         console.log('Inviting ' + peerId)
 
-        let { peerFeedKey, _ } = CryptoModule.addPeer(peerId)
-
-        // TODO: Do we even need to create the feed here? It will be created when _getFeed is called, and
-        // it is called when sending a message.
-        // let _ = this_._getFeed(discoveryKey)
-        // let peerFeedKeyBuffer = Buffer.from(peerFeedKey, 'hex')
-        // hypercore('./feeds/' + peerFeedKey, peerFeedKeyBuffer, { valueEncoding: 'json' })
+        let { peerFeedKey, _ } = CryptoModule.addPeer(peerId, true)
 
         this._pendingInvites.add(peerFeedKey)
         this._swarm.join(peerFeedKey, { lookup: true, announce: false })
     }
 
     acceptInvite(peerId) {
-        let { peerFeedKey, _ } = CryptoModule.addPeer(peerId)
-        
-        // Create replica feed
-        // TODO: User feed manager
-        let peerFeedKeyBuffer = Buffer.from(peerFeedKey, 'hex')
-        hypercore('./feeds/' + peerFeedKey, peerFeedKeyBuffer, { valueEncoding: 'json' })
+        let { _, _ } = CryptoModule.addPeer(peerId, false)
     }
 
     sendMessageTo(name, message) {
@@ -77,7 +57,7 @@ class Hyperchat extends EventEmitter {
     }
 
     getAllMessagesFrom(name, index) {
-        return null
+        return []
     }
 
     /** Private API **/
@@ -135,9 +115,15 @@ class Hyperchat extends EventEmitter {
                 })
             }
 
-            // If we have this topic among our known peers, we replicate it.
             if (CryptoModule.knows(topic)) {
+                // If we have this topic among our known peers, we replicate it.
                 this._replicate(topic, socket, stream)
+
+            } else if (topic === this._feed.discoveryKey) {
+                // If the topic is our own feed, we also replicate it.
+                this_.feed.replicate(stream, { live: true })
+                pump(stream, socket, stream)
+
             }
         }
 
