@@ -27,6 +27,10 @@ class Identity {
         return this._peers[peerID] !== undefined
     }
 
+    getDiscoveryKeyFromPeerID(peerID) {
+        return crypto.getDiscoveryKeyFromPeerID(peerID)
+    }
+
     generateChallenge(otherPeerID) {
         return crypto.generateChallenge(this._keypair.sk, this._keypair.pk, this._peerID, otherPeerID)
     }
