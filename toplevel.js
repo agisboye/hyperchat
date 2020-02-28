@@ -1,21 +1,11 @@
 const { EventEmitter } = require('events')
 const Protocol = require('hypercore-protocol')
 const pump = require('pump')
-// const jsonStream = require('duplex-json-stream')
 const hypercore = require('hypercore')
 const hyperswarm = require('hyperswarm')
-// const noisepeer = require('noise-peer')
-const uuid = require('uuid')
-const Contacts = require('./contacts')
 
-function generateSymKey() {
-    //TODO: Should instead be generated based on some symmetric crypto (sodium-native)
-    return uuid()
-}
 
-function generateChatID() {
-    return uuid()
-}
+const HYPERCHAT_PROTOCOL_INVITE = "invite"
 
 /** Events
  * ready
@@ -23,33 +13,25 @@ function generateChatID() {
  * message
  */
 
- /** Invite flow
-  * - waitingForConnection
-  * - invite sent
-  */
+/** Invite stages
+     * 1. Waiting: (replica feed generated, keypair generated, swarm joined)
+     * 2. Done/Invite completed. The peer has started replicating our feed.
+     */
 
-class TopLevel extends EventEmitter {
+class Hyperchat extends EventEmitter {
 
-    constructor(name) {
+    constructor() {
         super()
-        this._name = name
-        this._contacts = new Contacts(name)
         this._swarm = hyperswarm()
-        this._feedPath = './feeds/' + name + '/'
-        this._feed = hypercore(this._feedPath + 'own', { valueEncoding: 'json' })
+        this._feed = hypercore(`./feeds/own`, { valueEncoding: 'json' })
+        this._feeds = {}
 
-        // TODO: Generate DH keypair
-
+        // TODO: Persist pending invites somewhere
+        // TODO: When someone starts replicating with us, remove them from the list of pending invites. Replicating with someone is how an invite is accepted.
         this._pendingInvites = new Set()
-        this._sentInviteRequests = {}
     }
 
     /** Public API **/
-
-    myKey() {
-        // TODO: Return concatenation of my key + recipient key
-    }
-
     start() {
         this._feed.ready(() => {
             this._announceSelf()
@@ -58,15 +40,28 @@ class TopLevel extends EventEmitter {
         })
     }
 
-    //TODO: Add timeout error to callback. Card: https://github.com/agisboye/hyperchat-poc/projects/1#card-33617552
-    invite(otherPublicKey, cb) {
-        let otherPublicKeyBuffer = Buffer.from(otherPublicKey, 'hex')
-        // TODO: Return if we are already inviting this identity
+    invite(peerId) {
+        console.log('Inviting ' + peerId)
 
-        console.log('Inviting ' + otherPublicKey)
+        let { peerFeedKey, _ } = CryptoModule.addPeer(peerId)
 
-        this._pendingInvites.add(otherPublicKeyBuffer)
-        this._swarm.join(otherPublicKeyBuffer, { lookup: true, announce: false })
+        // TODO: Do we even need to create the feed here? It will be created when _getFeed is called, and
+        // it is called when sending a message.
+        // let _ = this_._getFeed(discoveryKey)
+        // let peerFeedKeyBuffer = Buffer.from(peerFeedKey, 'hex')
+        // hypercore('./feeds/' + peerFeedKey, peerFeedKeyBuffer, { valueEncoding: 'json' })
+
+        this._pendingInvites.add(peerFeedKey)
+        this._swarm.join(peerFeedKey, { lookup: true, announce: false })
+    }
+
+    acceptInvite(peerId) {
+        let { peerFeedKey, _ } = CryptoModule.addPeer(peerId)
+        
+        // Create replica feed
+        // TODO: User feed manager
+        let peerFeedKeyBuffer = Buffer.from(peerFeedKey, 'hex')
+        hypercore('./feeds/' + peerFeedKey, peerFeedKeyBuffer, { valueEncoding: 'json' })
     }
 
     sendMessageTo(name, message) {
@@ -92,111 +87,80 @@ class TopLevel extends EventEmitter {
     }
 
     _onConnection(socket, details) {
-
         console.log("Connection received")
 
-        const p = new Protocol(details.client, {
-            onauthenticate(remotePublicKey, done) {
-                console.log('remote person is', remotePublicKey)
-                
-                if (this._pendingInvites.has(details.topics[0])) {
-                    if (this._pendingInvites.has(remotePublicKey)) {
-                        // found the peer from pending invite
-                        done()
-                    } else {
-                        // We are trying to invite someone but someone else is responding.
-                        done(new Error("Respond to invite by unrelated peer"))
-                    }
-                } else {
-                    // Other cases: message replication, invite from someone
-                    done()
-                }
-                
-            },
-            onhandshake() {
-                
-                if (this._pendingInvites.has(p.remotePublicKey)) {
-                    console.log("Handshake completed with peer that we want to invite")
-                    // Invite this peer
-                    let sharedSymKey = generateSymKey()
-                    let chatID = generateChatID()
-
-                    ext.send({
-                        type: "invite",
-                        data: {
-                            senderPublicKey: this._feed.key.toString('hex'),
-                            sharedSymKey: sharedSymKey,
-                            chatID: chatID
-                        }
-                    })
-
-                    this._sentInviteRequests[message.data.senderPublicKey] = {
-                        chatID, sharedSymKey
-                    }
-
-                    // feed.replicate(p, { live: true })
-
-                } else {
-                    // This peer is inviting us or trying to replicate
-                    console.log("Handshake completed with other peer")
-                }
-            }
+        const stream = new Protocol(details.client, {
+            // onauthenticate(remotePublicKey, done) {
+            //     console.log('remote person is', remotePublicKey)
+            //     // TODO: remotePublicKey is not the same as the remote's discovery key
+            //     done()
+            // },
+            // onhandshake() {}
         })
 
-        const ext = p.registerExtension('hyperchat', {
+        const ext = stream.registerExtension('hyperchat', {
             encoding: 'json',
             onmessage(message) {
-                console.log("Message received: ")
+                console.log("Protocol message received: ")
                 console.log(message)
-                let chatID
 
                 switch (message.type) {
-                    case 'invite':
-                        chatID = generateChatID()
-                        let inviteResponse = {
-                            type: 'inviteResponse',
-                            senderPublicKey: this._feed.key.toString('hex'),
-                            chatID: chatID
+                    case HYPERCHAT_PROTOCOL_INVITE:
+                        // Attempt to decrypt the challenge. If decryption succeeds, we have the peerID of the peer that is sending us an invite.
+                        let challenge = message.data.challenge
+                        let peerId = CryptoModule.answerChallenge(challenge)
+                        if (peerId) {
+                            this._acceptInvite(peerId)
+                            let peerFeedKey = CryptoModule.feedKey(peerId)
+                            this._replicate(peerFeedKey, socket, stream)
                         }
-                        ext.send(inviteResponse)
-                        this._contacts.persist(message.data.senderPublicKey, chatID, message.data.chatID, message.data.sharedSymKey)
-                        this._initReplicaFor(message.data.senderPublicKey)
 
-                        break;
-                        
-                    case 'inviteResponse':
-                        // TODO: Check if we are expecting this invite response
-                        // TODO: Look up chatID and sharedSymKey
-                        let req = this._sentInviteRequests[message.data.senderPublicKey]
-                        chatID = req.chatID
-                        let sharedSymKey = req.sharedSymKey
-                            
-                        this._contacts.persist(message.data.senderPublicKey, message.data.chatID, chatID, sharedSymKey)
-                        this._initReplicaFor(message.data.senderPublicKey)
-
-                        delete this._sentInviteRequests[message.data.senderPublicKey]
-                        
-                        break;
+                        break
 
                     default:
                         throw new Error("Unsupported protocol message")
                 }
             }
         })
-        
-        this._feed.replicate(p, { live: true })
-        pump(p, socket, p)
+
+        for (let topic of details.topics) {
+            // Send a challenge to the connecting peer
+            // if we are trying to invite on this topic.
+            if (this._pendingInvites.has(topic)) {
+                let challenge = CryptoModule.generateChallenge(topic)
+
+                ext.send({
+                    type: HYPERCHAT_PROTOCOL_INVITE,
+                    data: challenge
+                })
+            }
+
+            // If we have this topic among our known peers, we replicate it.
+            if (CryptoModule.knows(topic)) {
+                this._replicate(topic, socket, stream)
+            }
+        }
 
     }
 
-    _initReplicaFor(otherPublicKey) {
-        let otherPublicKeyBuffer = Buffer.from(otherPublicKey, 'hex')
-        let otherFeed = hypercore(this._feedPath + otherPublicKey, otherPublicKeyBuffer, { valueEncoding: 'json' })
+    _replicate(discoveryKey, socket, stream) {
+        let feed = this_._getFeed(discoveryKey)
+        feed.replicate(stream, { live: true })
+        pump(stream, socket, stream)
+    }
 
-        // this._replicas.push(otherFeed)
+    _getFeed(discoveryKey) {
+        let feed = this_.feeds[discoveryKey]
+
+        if (feed) return feed
+
+        let discoveryKeyBuffer = Buffer.from(topic, 'hex')
+        let feed = hypercore(`./feeds/${discoveryKey}`, discoveryKeyBuffer, { valueEncoding: 'json' })
+        this_.feeds[discoveryKey] = feed
+        
+        return feed
     }
 
 }
 
-
-module.exports = TopLevel
+module.exports = Hyperchat
