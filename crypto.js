@@ -15,7 +15,7 @@ function _generateNonce() {
     return nonce
 }
 
-function _hash(input, key) {
+function _createChallengeProof(input, key) {
     let output = Buffer.alloc(sodium.crypto_generichash_BYTES_MAX)
     sodium.crypto_generichash(output, input, key)
     return output
@@ -29,20 +29,22 @@ function _splitNonceAndCipher(cipherAndNonce) {
     cipherAndNonce.copy(nonce, 0, 0, sodium.crypto_secretbox_NONCEBYTES)
     cipherAndNonce.copy(cipher, 0, sodium.crypto_secretbox_NONCEBYTES, cipherAndNonce.length)
 
-    return {nonce, cipher}
+    return { nonce, cipher }
 }
 
 /// returns (rx, tx)
-function _generateEncryptionKey(clientPublicKey, clientSecretKey, serverPublicKey) {
+function _generateClientKeys(clientPublicKey, clientSecretKey, serverPublicKey) {
+    let rx = Buffer.alloc(sodium.crypto_kx_SESSIONKEYBYTES)
     let tx = Buffer.alloc(sodium.crypto_kx_SESSIONKEYBYTES)
-    sodium.crypto_kx_client_session_keys(null, tx, clientPublicKey, clientSecretKey, serverPublicKey)
-    return tx
+    sodium.crypto_kx_client_session_keys(rx, tx, clientPublicKey, clientSecretKey, serverPublicKey)
+    return { rx, tx }
 }
 
-function _generateDecryptionKey(serverPublicKey, serverSecretKey, clientPublicKey) {
+function _generateServerKey(serverPublicKey, serverSecretKey, clientPublicKey) {
     let rx = Buffer.alloc(sodium.crypto_kx_SESSIONKEYBYTES)
-    sodium.crypto_kx_server_session_keys(rx, null, serverPublicKey, serverSecretKey, clientPublicKey)
-    return rx
+    let tx = Buffer.alloc(sodium.crypto_kx_SESSIONKEYBYTES)
+    sodium.crypto_kx_server_session_keys(rx, tx, serverPublicKey, serverSecretKey, clientPublicKey)
+    return { rx, tx }
 }
 
 function _splitPeerID(peerID) {
@@ -71,7 +73,7 @@ function createPeerID(ownFeedDiscoveryKey, ownPublicKey) {
 
 function encryptMessage(plainMessage, ownPublicKey, ownPrivateKey, otherPeerID) {
     let otherPublicKey = _getPublicKeyFromPeerID(otherPeerID)
-    let encryptionKey = _generateEncryptionKey(ownPublicKey, ownPrivateKey, otherPublicKey)
+    let encryptionKey = _generateClientKeys(ownPublicKey, ownPrivateKey, otherPublicKey)
     let ciphertext = Buffer.alloc(plainMessage.length + sodium.crypto_secretbox_MACBYTES)
     let message = Buffer.from(plainMessage)
     let nonce = _generateNonce()
@@ -84,9 +86,9 @@ function encryptMessage(plainMessage, ownPublicKey, ownPrivateKey, otherPeerID) 
 
 function tryDecryptMessage(cipherAndNonce, ownPublicKey, ownPrivateKey, otherPeerID) {
     let otherPublicKey = _getPublicKeyFromPeerID(otherPeerID)
-    let decryptionKey = _generateDecryptionKey(ownPublicKey, ownPrivateKey, otherPublicKey)
+    let decryptionKey = _generateServerKey(ownPublicKey, ownPrivateKey, otherPublicKey)
 
-    let {nonce, cipher} = _splitNonceAndCipher(cipherAndNonce)
+    let { nonce, cipher } = _splitNonceAndCipher(cipherAndNonce)
 
     let plainTextBuffer = Buffer.alloc(cipher.length - sodium.crypto_secretbox_MACBYTES)
 
@@ -103,16 +105,16 @@ function generateChallenge(ownSecretKey, ownPublicKey, ownPeerID, otherPeerID) {
     let otherPublicKey = _getPublicKeyFromPeerID(otherPeerID)
     let nonce = _generateNonce()
 
-    let tx = _generateEncryptionKey(ownPublicKey, ownSecretKey, otherPublicKey)
-    let proof = _hash(nonce, tx)
+    let { _, tx } = _generateClientKeys(ownPublicKey, ownSecretKey, otherPublicKey)
+    let proof = _createChallengeProof(nonce, tx)
 
     let message = { 
-        peerID: ownPeerID.toString('hex'), 
+        peerID: ownPeerID.toString('hex'),
         nonce: nonce.toString('hex'), 
         proof: proof.toString('hex') 
     }
 
-    let messageBuffer = Buffer.from(JSON.stringify(message), 'hex')
+    let messageBuffer = Buffer.from(JSON.stringify(message), 'utf8')
     let ciphertext = Buffer.alloc(messageBuffer.length + sodium.crypto_box_SEALBYTES)
 
     sodium.crypto_box_seal(ciphertext, messageBuffer, otherPublicKey)
@@ -121,34 +123,31 @@ function generateChallenge(ownSecretKey, ownPublicKey, ownPeerID, otherPeerID) {
 }
 
 function tryAnswerChallenge(ciphertext, ownPublicKey, ownSecretKey) {
+    // TODO: Check format of data (i.e. ensure everything is present and of proper length). Right now some of the calls will crash the program if someone sends us malformed data.
+
     let result = Buffer.alloc(ciphertext.length - sodium.crypto_box_SEALBYTES)
     if (sodium.crypto_box_seal_open(result, ciphertext, ownPublicKey, ownSecretKey)) {
-        let x = result.toString('hex')
-        let data = JSON.parse(result.toString('hex'))
-        // TODO: persist peerID
+        let data = JSON.parse(result.toString('utf8'))
         
         // Verify that the sender also knows the shared secret key.
         let nonce = Buffer.from(data.nonce, 'hex')
         let proof = Buffer.from(data.proof, 'hex')
-        let otherPeerID = Buffer.from(data.proof, 'hex')
+        let otherPeerID = Buffer.from(data.peerID, 'hex')
         let otherPublicKey = _getPublicKeyFromPeerID(otherPeerID)
 
-        let rx = _generateDecryptionKey(ownPublicKey, ownSecretKey, otherPublicKey)
+        let { rx, _ } = _generateServerKey(ownPublicKey, ownSecretKey, otherPublicKey)
         
-        let myProof = _hash(nonce, rx)
+        let myProof = _createChallengeProof(nonce, rx)
 
         // compare the two hashes
-        let res = sodium.sodium_compare(proof, myProof)
-        let y = 1
-        
+        let res = sodium.sodium_memcmp(proof, myProof)
 
-    } else {
-        // Decryption failed. 
-        throw new Error('tryAnswerChallenge decryption failed')
+        if (res) {
+            return otherPeerID
+        }
     }
-    
 
-
+    return null
 
 }
 
