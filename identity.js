@@ -21,6 +21,7 @@ class Identity {
         // TODO: Should be no-op if we already know peer but right now we can change who is initiator.
         this._peers[peerID] = isInitiator
         this._save()
+        return this.getDiscoveryKeyFromPeerID(Buffer.from(peerID, 'hex'))
     }
 
     knows(peerID) {

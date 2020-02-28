@@ -34,14 +34,14 @@ class Hyperchat extends EventEmitter {
     invite(peerId) {
         console.log('Inviting ' + peerId)
 
-        let { peerFeedKey, _ } = this._identity.addPeer(peerId, true)
+        let peerFeedKey = this._identity.addPeer(peerId, true)
 
         this._pendingInvites.add(peerFeedKey)
         this._swarm.join(peerFeedKey, { lookup: true, announce: false })
     }
 
     acceptInvite(peerId) {
-        let { peerFeedKey, _ } = this._identity.addPeer(peerId, false)
+        let peerFeedKey = this._identity.addPeer(peerId, false)
     }
 
     sendMessageTo(name, message) {
@@ -63,7 +63,7 @@ class Hyperchat extends EventEmitter {
     /** Private API **/
     _announceSelf() {
         console.log("Announcing self")
-        this._swarm.join(this._feed.key, { lookup: false, announce: true })
+        this._swarm.join(this._feed.discoveryKey, { lookup: false, announce: true })
     }
 
     _onConnection(socket, details) {
