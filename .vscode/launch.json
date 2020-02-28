@@ -32,11 +32,11 @@
         {
             "type": "node",
             "request": "launch",
-            "name": "Launch crypto",
+            "name": "Launch tmp",
             "skipFiles": [
                 "<node_internals>/**"
             ],
-            "program": "${workspaceFolder}/crypto.js",
+            "program": "${workspaceFolder}/tmp.js",
         }
     ]
 }

@@ -2,14 +2,6 @@ const sodium = require('sodium-native')
 
 const HYPERCORE_DISCOVERYKEY_SIZE = 32
 
-/// Returns (pk, sk)
-function _generateKeyPair() {
-    let pk = Buffer.alloc(sodium.crypto_kx_PUBLICKEYBYTES)
-    let sk = Buffer.alloc(sodium.crypto_kx_SECRETKEYBYTES)
-    sodium.crypto_kx_keypair(pk, sk)
-    return { pk, sk }
-}
-
 function _generateNonce() {
     let nonce = Buffer.alloc(sodium.crypto_secretbox_NONCEBYTES)
     sodium.randombytes_buf(nonce)
@@ -63,6 +55,14 @@ function _getPublicKeyFromPeerID(peerID) {
 }
 
 // ------- public functions ------- //
+
+/// Returns (pk, sk)
+function generateKeyPair() {
+    let pk = Buffer.alloc(sodium.crypto_kx_PUBLICKEYBYTES)
+    let sk = Buffer.alloc(sodium.crypto_kx_SECRETKEYBYTES)
+    sodium.crypto_kx_keypair(pk, sk)
+    return { pk, sk }
+}
 
 function getDiscoveryKeyFromPeerID(peerID) {
     return _splitPeerID(peerID).discoveryKey
@@ -159,7 +159,8 @@ module.exports = {
     encryptMessage,
     decryptMessage,
     generateChallenge,
-    answerChallenge
+    answerChallenge, 
+    generateKeyPair
 }
 
 // server
