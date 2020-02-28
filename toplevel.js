@@ -38,31 +38,22 @@ class TopLevel extends EventEmitter {
         this._feedPath = './feeds/' + name + '/'
         this._feed = hypercore(this._feedPath + 'own', { valueEncoding: 'json' })
 
+        // TODO: Generate DH keypair
+
         this._pendingInvites = new Set()
         this._sentInviteRequests = {}
     }
 
     /** Public API **/
 
+    myKey() {
+        // TODO: Return concatenation of my key + recipient key
+    }
+
     start() {
         this._feed.ready(() => {
             this._announceSelf()
-            // Is used so that other party knows how under what public key to discover you. 
-            console.log('pk=', this._feed.key.toString('hex'))
-
             this._swarm.on('connection', (s, d) => this._onConnection(s, d))
-
-            // Announce yourself under your own public key
-            // this._swarm.join(this._feed.key, { lookup: false, announce: true })
-            
-            // this._swarm.on('connection', (socket, details) => {
-            //     if (!details.client) {
-            //         // make a secure json socket using the Noise Protocol. This side is not inititator
-            //         let secureSocket = jsonStream(noisepeer(socket, false))
-            //         secureSocket.on('data', message => { this._handleMessageAtStartAsServer(message, this._feed, secureSocket) })
-            //     }
-            // })
-
             this.emit('ready')
         })
     }
