@@ -29,5 +29,14 @@
                 "A"
             ]
         },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Launch crypto",
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "program": "${workspaceFolder}/crypto.js",
+        }
     ]
 }
