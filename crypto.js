@@ -1,5 +1,6 @@
 const sodium = require('sodium-native')
 
+const HYPERCORE_DISCOVERYKEY_SIZE = 32
 /// Returns (pk, sk)
 function generateKeyPair() {
     let pk = Buffer.alloc(sodium.crypto_kx_PUBLICKEYBYTES)
@@ -26,21 +27,30 @@ function generateReceiveAndTransmissionKeysAsServer(serverPublicKey, serverSecre
 }
 
 function splitPeerID(peerID) {
-    let feedKey = ""
-    let pk = ""
-    return {feedKey, pk}
+    // First 32 bytes of peerID is discovery key
+    // last 32 bytes of peerID is DH public key
+    let discoveryKey = Buffer.alloc(HYPERCORE_DISCOVERYKEY_SIZE)
+    let publicKey = Buffer.alloc(sodium.crypto_kx_PUBLICKEYBYTES)
+    peerID.copy(discoveryKey, 0, 0, HYPERCORE_DISCOVERYKEY_SIZE)
+    peerID.copy(publicKey, 0, HYPERCORE_DISCOVERYKEY_SIZE, peerID.length)
+    return {discoveryKey, publicKey}
 }
 
 function getPublicKeyFromPeerID(peerID) {
-    return splitPeerID(peerID).pk
+    return splitPeerID(peerID).publicKey
 }
 
 // ------- public functions ------- //
 
-function getFeedKeyFromPeerID(peerID) {
-    return splitPeerID(peerID).feedKey
+function getDiscoveryKeyFromPeerID(peerID) {
+    return splitPeerID(peerID).discoveryKey
 }
 
+function createPeerID(ownFeedDiscoveryKey, ownPublicKey) {
+    return Buffer.concat([ownFeedDiscoveryKey, ownPublicKey])
+}
+
+// TODO: Move to crypto persistence module
 function peerIDAlreadyExists(peerID) {
     return false
 }
@@ -49,29 +59,3 @@ function encryptMessage(plainMessage, otherPeerID) {
     let otherPK = getPublicKeyFromPeerID(otherPeerID)
 
 }
-
-// client
-let clientPairs = generateKeyPair()
-let cpk = clientPairs.pk
-let csk = clientPairs.sk
-
-//server
-let serverPairs = generateKeyPair()
-let spk = serverPairs.pk
-let ssk = serverPairs.sk
-
-// (rx, tx) at client
-let clientRXTX = generateReceiveAndTransmissionKeysAsClient(cpk, csk, spk)
-let crx = clientRXTX.rx
-let ctx = clientRXTX.tx
-console.log('client')
-console.log(crx.toString('hex'))
-console.log(ctx.toString('hex'))
-
-// (rx, tx) at server
-let serverRXTX = generateReceiveAndTransmissionKeysAsServer(spk, ssk, cpk)
-let srx = serverRXTX.rx
-let stx = serverRXTX.tx
-console.log('server')
-console.log(srx.toString('hex'))
-console.log(stx.toString('hex'))
