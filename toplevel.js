@@ -61,7 +61,7 @@ class TopLevel extends EventEmitter {
         this._swarm.on('connection', (socket, details) => {
             // make a secure json socket using the Noise Protocol. This side is initiator
             let secureJSONSocket = jsonStream(noisepeer(socket, true))
-
+            
             //TODO: Should message be signed by sender to prove authentication (sodium-native)? Maybe sign using own feed private key?
             let sharedSymKey = crypto.generateSymKey()
             let chatID = generateChatID()
