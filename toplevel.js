@@ -3,6 +3,7 @@ const Protocol = require('hypercore-protocol')
 const pump = require('pump')
 const hypercore = require('hypercore')
 const hyperswarm = require('hyperswarm')
+const Identity = require('./identity')
 
 const HYPERCHAT_PROTOCOL_INVITE = "invite"
 
@@ -10,9 +11,6 @@ class Hyperchat extends EventEmitter {
 
     constructor() {
         super()
-        this._my_keypair = {} // TODO
-
-
         this._swarm = hyperswarm()
         this._feed = hypercore(`./feeds/own`, { valueEncoding: 'json' })
         this._feeds = {}
@@ -25,6 +23,8 @@ class Hyperchat extends EventEmitter {
     /** Public API **/
     start() {
         this._feed.ready(() => {
+            this._identity = new Identity(this._feed.discoveryKey)
+            console.log(`Peer ID: ${this._identity.me().toString("hex")}`)
             this._announceSelf()
             this._swarm.on('connection', (s, d) => this._onConnection(s, d))
             this.emit('ready')
@@ -34,14 +34,14 @@ class Hyperchat extends EventEmitter {
     invite(peerId) {
         console.log('Inviting ' + peerId)
 
-        let { peerFeedKey, _ } = CryptoModule.addPeer(peerId, true)
+        let { peerFeedKey, _ } = this._identity.addPeer(peerId, true)
 
         this._pendingInvites.add(peerFeedKey)
         this._swarm.join(peerFeedKey, { lookup: true, announce: false })
     }
 
     acceptInvite(peerId) {
-        let { _, _ } = CryptoModule.addPeer(peerId, false)
+        let { peerFeedKey, _ } = this._identity.addPeer(peerId, false)
     }
 
     sendMessageTo(name, message) {
@@ -88,10 +88,10 @@ class Hyperchat extends EventEmitter {
                     case HYPERCHAT_PROTOCOL_INVITE:
                         // Attempt to decrypt the challenge. If decryption succeeds, we have the peerID of the peer that is sending us an invite.
                         let challenge = message.data.challenge
-                        let peerId = CryptoModule.answerChallenge(challenge)
+                        let peerId = this._identity.answerChallenge(challenge)
                         if (peerId) {
                             this._acceptInvite(peerId)
-                            let peerFeedKey = CryptoModule.feedKey(peerId)
+                            let peerFeedKey = this._identity.feedKey(peerId)
                             this._replicate(peerFeedKey, socket, stream)
                         }
 
@@ -107,7 +107,7 @@ class Hyperchat extends EventEmitter {
             // Send a challenge to the connecting peer
             // if we are trying to invite on this topic.
             if (this._pendingInvites.has(topic)) {
-                let challenge = CryptoModule.generateChallenge(topic)
+                let challenge = this._identity.generateChallenge(topic)
 
                 ext.send({
                     type: HYPERCHAT_PROTOCOL_INVITE,
@@ -115,7 +115,7 @@ class Hyperchat extends EventEmitter {
                 })
             }
 
-            if (CryptoModule.knows(topic)) {
+            if (this._identity.knows(topic)) {
                 // If we have this topic among our known peers, we replicate it.
                 this._replicate(topic, socket, stream)
 
@@ -141,7 +141,7 @@ class Hyperchat extends EventEmitter {
         if (feed) return feed
 
         let discoveryKeyBuffer = Buffer.from(topic, 'hex')
-        let feed = hypercore(`./feeds/${discoveryKey}`, discoveryKeyBuffer, { valueEncoding: 'json' })
+        feed = hypercore(`./feeds/${discoveryKey}`, discoveryKeyBuffer, { valueEncoding: 'json' })
         this_.feeds[discoveryKey] = feed
         
         return feed
