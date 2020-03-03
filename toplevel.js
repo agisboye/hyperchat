@@ -28,7 +28,7 @@ class Hyperchat extends EventEmitter {
             this._identity = new Identity(this._name, this._feed.discoveryKey)
             console.log(`Peer ID: ${this._identity.me()}`)
             this._announceSelf()
-            this._swarm.on('connection', (socket, details) => this._onConnection(socket, details, this))
+            this._swarm.on('connection', (socket, details) => this._onConnection(socket, details))
             this.emit('ready')
         })
     }
@@ -67,9 +67,9 @@ class Hyperchat extends EventEmitter {
     }
 
     /// Note: self = instance of Hyperchat. Must be passed as argument as 'this' inside 'Protocol'-scope refers to the 'Protocol' instance. 
-    _onConnection(socket, details, self) {
+    _onConnection(socket, details) {
         console.log("Connection received. #topics =", details.topics.length)
-        console.log(this);
+        let self = this;
 
         const stream = new Protocol(details.client, {
             // onauthenticate(remotePublicKey, done) {
