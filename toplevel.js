@@ -37,7 +37,7 @@ class Hyperchat extends EventEmitter {
         let peerFeedKey = this._identity.addPeer(peerId, true)
 
         this._pendingInvites.add(peerFeedKey)
-        this._swarm.join(peerFeedKey, { lookup: true, announce: false })
+        this._swarm.join(Buffer.from(peerFeedKey, 'hex'), { lookup: true, announce: false })
     }
 
     acceptInvite(peerId) {
