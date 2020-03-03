@@ -116,7 +116,9 @@ class Hyperchat extends EventEmitter {
                 console.log('sending protocol invite...')
                 ext.send({
                     type: HYPERCHAT_PROTOCOL_INVITE,
-                    data: challenge
+                    data: {
+                        challenge: challenge
+                    }
                 })
             }
 
