@@ -132,7 +132,7 @@ class Hyperchat extends EventEmitter {
 
             }
         }
-
+        pump(stream, socket, stream)
     }
 
     _replicate(discoveryKey, socket, stream) {
