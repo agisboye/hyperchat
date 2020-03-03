@@ -89,12 +89,15 @@ class Hyperchat extends EventEmitter {
                 switch (message.type) {
                     case HYPERCHAT_PROTOCOL_INVITE:
                         // Attempt to decrypt the challenge. If decryption succeeds, we have the peerID of the peer that is sending us an invite.
-                        let challenge = Buffer.from(message.data.challenge, 'hex')
+                        let challenge = message.data.challenge
                         let peerId = self._identity.answerChallenge(challenge)
                         if (peerId) {
+                            console.log('challenge answer succeeded')
                             self.acceptInvite(peerId)
                             let peerFeedKey = self._identity.getDiscoveryKeyFromPeerID(peerId)
                             self._replicate(peerFeedKey, stream)
+                        } else {
+                            console.log('challenge answer failed')
                         }
 
                         break
