@@ -86,8 +86,7 @@ class Hyperchat extends EventEmitter {
         const ext = stream.registerExtension('hyperchat', {
             encoding: 'json',
             onmessage(message) {
-                console.log("Protocol message received: ")
-                console.log(message)
+                console.log("Protocol message received")
 
                 switch (message.type) {
                     case HYPERCHAT_PROTOCOL_INVITE:
@@ -128,10 +127,10 @@ class Hyperchat extends EventEmitter {
             } else if (topic === this._feed.discoveryKey) {
                 // If the topic is our own feed, we also replicate it.
                 this_.feed.replicate(stream, { live: true })
-                pump(stream, socket, stream)
 
             }
         }
+
         pump(stream, socket, stream)
     }
 
