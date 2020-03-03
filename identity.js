@@ -20,8 +20,8 @@ class Identity {
     addPeer(peerID, isInitiator) {
         // TODO: Should be no-op if we already know peer but right now we can change who is initiator.
         this._peers[peerID] = isInitiator
-        let l = peerID.length
         this._save()
+        console.log(this._peers)
         return this.getDiscoveryKeyFromPeerID(Buffer.from(peerID, 'hex'))
     }
 
@@ -30,7 +30,7 @@ class Identity {
     }
 
     getDiscoveryKeyFromPeerID(peerID) {
-        return crypto.getDiscoveryKeyFromPeerID(peerID)
+        return crypto.getDiscoveryKeyFromPeerID(Buffer.from(peerID, 'hex')).toString('hex')
     }
 
     generateChallenge(topic) {
@@ -48,7 +48,12 @@ class Identity {
     }
 
     answerChallenge(ciphertext) {
-        return crypto.answerChallenge(ciphertext, this._keypair.pk, this._keypair.sk)
+        let res = crypto.answerChallenge(ciphertext, this._keypair.pk, this._keypair.sk)
+        if (res) {
+            return res.toString('hex')
+        } else {
+            return null
+        }
     }
 
     _hexKeypairToBuffers(keypair) {

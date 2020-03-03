@@ -42,7 +42,7 @@ class Hyperchat extends EventEmitter {
 
     acceptInvite(peerId) {
         console.log('accepting invite')
-        let peerFeedKey = this._identity.addPeer(peerId, false)
+        this._identity.addPeer(peerId, false)
     }
 
     sendMessageTo(name, message) {
