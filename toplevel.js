@@ -26,7 +26,7 @@ class Hyperchat extends EventEmitter {
             this._identity = new Identity(this._feed.discoveryKey)
             console.log(`Peer ID: ${this._identity.me().toString("hex")}`)
             this._announceSelf()
-            this._swarm.on('connection', (s, d) => this._onConnection(s, d))
+            this._swarm.on('connection', (socket, details) => this._onConnection(socket, details))
             this.emit('ready')
         })
     }
@@ -76,6 +76,7 @@ class Hyperchat extends EventEmitter {
             //     done()
             // },
             // onhandshake() {}
+            timeout: false
         })
 
         const ext = stream.registerExtension('hyperchat', {
@@ -143,7 +144,7 @@ class Hyperchat extends EventEmitter {
         let discoveryKeyBuffer = Buffer.from(topic, 'hex')
         feed = hypercore(`./feeds/${discoveryKey}`, discoveryKeyBuffer, { valueEncoding: 'json' })
         this_.feeds[discoveryKey] = feed
-        
+
         return feed
     }
 

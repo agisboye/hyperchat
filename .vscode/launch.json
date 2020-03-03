@@ -13,8 +13,7 @@
             ],
             "program": "${workspaceFolder}/main.js",
             "args": [
-                "A",
-                "ff1931feba2b2f5ab668b9f1965f5134a72766e002043faa226c1eae28234b82"
+                "e4f997c2a92ef698984f73ded65eec75db73d8b04a11035d4fc0ca0fd3278588d27c41f402e4422460b9b84362b2ecd3b5e066678ce52a5a70d7338515551c05"
             ]
         },
         {

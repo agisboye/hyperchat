@@ -20,6 +20,7 @@ class Identity {
     addPeer(peerID, isInitiator) {
         // TODO: Should be no-op if we already know peer but right now we can change who is initiator.
         this._peers[peerID] = isInitiator
+        let l = peerID.length
         this._save()
         return this.getDiscoveryKeyFromPeerID(Buffer.from(peerID, 'hex'))
     }
@@ -32,8 +33,18 @@ class Identity {
         return crypto.getDiscoveryKeyFromPeerID(peerID)
     }
 
-    generateChallenge(otherPeerID) {
-        return crypto.generateChallenge(this._keypair.sk, this._keypair.pk, this._peerID, otherPeerID)
+    generateChallenge(topic) {
+        // We need to find the peerID containing topic. 
+        // TODO: What if multuple peerIDs contain 'topic'?
+        let topicString = topic.toString('hex')
+        let peerIDContainingTopic = Object.keys(this._peers).find(peerID => {
+            let dk = peerID.substring(0, 64)
+            return dk === topicString
+        })
+
+        let otherPeerIDBuffer = Buffer.from(peerIDContainingTopic, 'hex')
+
+        return crypto.generateChallenge(this._keypair.sk, this._keypair.pk, this._peerID, otherPeerIDBuffer)
     }
 
     answerChallenge(ciphertext) {
@@ -42,17 +53,17 @@ class Identity {
 
     _hexKeypairToBuffers(keypair) {
         return {
-            pk: Buffer.from(keypair.pk, 'hex'), 
+            pk: Buffer.from(keypair.pk, 'hex'),
             sk: Buffer.from(keypair.sk, 'hex')
         }
     }
-    
+
     _load() {
         try {
             let obj = JSON.parse(fs.readFileSync(this._filepath))
-            this._keypair = (obj.keypair === undefined) ? crypto.generateKeyPair() : this._hexKeypairToBuffers(obj.keypair)
-            this._peers = (obj.peers === undefined) ? {} : obj.peers
-        } catch(err) {
+            this._keypair = (obj.keypair === undefined) ? crypto.generateKeyPair() : this._hexKeypairToBuffers(obj.keypair)
+            this._peers = (obj.peers === undefined) ? {} : obj.peers
+        } catch (err) {
             // file doesnt exist. Init file with empty json
             fs.writeFileSync(this._filepath, "{}")
             this._load()
@@ -67,7 +78,7 @@ class Identity {
         }
 
         let obj = JSON.stringify({
-            keypair: hexKeypair, 
+            keypair: hexKeypair,
             peers: this._peers
         })
 

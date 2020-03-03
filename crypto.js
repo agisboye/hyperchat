@@ -101,7 +101,7 @@ function decryptMessage(cipherAndNonce, ownPublicKey, ownPrivateKey, otherPeerID
     }
 }
 
-/// A challenge ownPeerID encrypted with otherPeerID's public key.
+/// A challenge is ownPeerID + nonce encrypted with otherPeerID's public key.
 function generateChallenge(ownSecretKey, ownPublicKey, ownPeerID, otherPeerID) {
     let otherPublicKey = _getPublicKeyFromPeerID(otherPeerID)
     let nonce = _generateNonce()
