@@ -17,7 +17,7 @@ class Hyperchat extends EventEmitter {
 
         // TODO: Persist pending invites somewhere?
         // TODO: When someone starts replicating with us, remove them from the list of pending invites. Replicating with someone is how an invite is accepted.
-        this._pendingInvites = new Set()
+        this._pendoingInvites = new Set()
     }
 
     /** Public API **/
@@ -41,6 +41,7 @@ class Hyperchat extends EventEmitter {
     }
 
     acceptInvite(peerId) {
+        console.log('accept invite')
         this._identity.addPeer(peerId, false)
     }
 
