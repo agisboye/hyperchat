@@ -37,12 +37,12 @@ class Hyperchat extends EventEmitter {
         let peerFeedKey = this._identity.addPeer(peerId, true)
 
         this._pendingInvites.add(peerFeedKey)
-        this._swarm.join(peerFeedKey, { lookup: true, announce: false })
+        this._swarm.join(Buffer.from(peerFeedKey, 'hex'), { lookup: true, announce: false })
     }
 
     acceptInvite(peerId) {
         console.log('accepting invite')
-        let peerFeedKey = this._identity.addPeer(peerId, false)
+        this._identity.addPeer(peerId, false)
     }
 
     sendMessageTo(name, message) {
@@ -89,7 +89,7 @@ class Hyperchat extends EventEmitter {
                 switch (message.type) {
                     case HYPERCHAT_PROTOCOL_INVITE:
                         // Attempt to decrypt the challenge. If decryption succeeds, we have the peerID of the peer that is sending us an invite.
-                        let challenge = Buffer.from(message.data.challenge, 'hex')
+                        let challenge = message.data.challenge
                         let peerId = self._identity.answerChallenge(challenge)
                         if (peerId) {
                             self.acceptInvite(peerId)

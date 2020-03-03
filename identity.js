@@ -48,7 +48,7 @@ class Identity {
     }
 
     answerChallenge(ciphertext) {
-        return crypto.answerChallenge(ciphertext, this._keypair.pk, this._keypair.sk)
+        return crypto.answerChallenge(Buffer.from(ciphertext, 'hex'), this._keypair.pk, this._keypair.sk)
     }
 
     _hexKeypairToBuffers(keypair) {
