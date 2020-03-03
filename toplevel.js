@@ -34,15 +34,9 @@ class Hyperchat extends EventEmitter {
     }
 
     invite(peerId) {
-        if (this._identity.knows(peerId)) {
-            console.log('Already connected to', peerId)
-        } else {
-            console.log('Inviting', peerId)
-            this._pendingInvites.add(peerFeedKey)
-        }
-
         let peerFeedKey = this._identity.addPeer(peerId, true)
         this._swarm.join(Buffer.from(peerFeedKey, 'hex'), { lookup: true, announce: false })
+        this._pendingInvites.add(peerFeedKey)
     }
 
     acceptInvite(peerId) {
@@ -75,6 +69,7 @@ class Hyperchat extends EventEmitter {
     /// Note: self = instance of Hyperchat. Must be passed as argument as 'this' inside 'Protocol'-scope refers to the 'Protocol' instance. 
     _onConnection(socket, details, self) {
         console.log("Connection received. #topics =", details.topics.length)
+        console.log(this);
 
         const stream = new Protocol(details.client, {
             // onauthenticate(remotePublicKey, done) {
