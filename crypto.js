@@ -125,8 +125,6 @@ function generateChallenge(ownSecretKey, ownPublicKey, ownPeerID, otherPeerID) {
 
 function answerChallenge(ciphertext, ownPublicKey, ownSecretKey) {
     // TODO: Check format of data (i.e. ensure everything is present and of proper length). Right now some of the calls will crash the program if someone sends us malformed data.
-
-    let length = ciphertext.length
     let result = Buffer.alloc(ciphertext.length - sodium.crypto_box_SEALBYTES)
     if (sodium.crypto_box_seal_open(result, ciphertext, ownPublicKey, ownSecretKey)) {
         let data = JSON.parse(result.toString('utf8'))

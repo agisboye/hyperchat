@@ -66,6 +66,7 @@ class Hyperchat extends EventEmitter {
         this._swarm.join(this._feed.discoveryKey, { lookup: false, announce: true })
     }
 
+    /// Note: self = instance of Hyperchat. Must be passed as argument as 'this' inside 'Protocol'-scope refers to the 'Protocol' instance. 
     _onConnection(socket, details, self) {
         console.log("Connection received")
 
@@ -94,9 +95,9 @@ class Hyperchat extends EventEmitter {
                         let challenge = Buffer.from(message.data.challenge, 'hex')
                         let peerId = self._identity.answerChallenge(challenge)
                         if (peerId) {
-                            self._acceptInvite(peerId)
-                            let peerFeedKey = this._identity.feedKey(peerId)
-                            self._replicate(peerFeedKey, socket, stream)
+                            self.acceptInvite(peerId)
+                            let peerFeedKey = self._identity.getDiscoveryKeyFromPeerID(peerId)
+                            self._replicate(peerFeedKey, stream)
                         }
 
                         break
@@ -124,7 +125,7 @@ class Hyperchat extends EventEmitter {
 
             if (this._identity.knows(topic)) {
                 // If we have this topic among our known peers, we replicate it.
-                this._replicate(topic, socket, stream)
+                this._replicate(topic, stream)
 
             } else if (topic === this._feed.discoveryKey) {
                 // If the topic is our own feed, we also replicate it.
@@ -136,20 +137,19 @@ class Hyperchat extends EventEmitter {
         pump(stream, socket, stream)
     }
 
-    _replicate(discoveryKey, socket, stream) {
-        let feed = this_._getFeed(discoveryKey)
+    _replicate(discoveryKey, stream) {
+        let feed = this._getFeed(discoveryKey)
         feed.replicate(stream, { live: true })
-        pump(stream, socket, stream)
     }
 
     _getFeed(discoveryKey) {
-        let feed = this_.feeds[discoveryKey]
+        let feed = this._feeds[discoveryKey]
 
         if (feed) return feed
 
-        let discoveryKeyBuffer = Buffer.from(topic, 'hex')
+        let discoveryKeyBuffer = Buffer.from(discoveryKey, 'hex')
         feed = hypercore(`./feeds/${discoveryKey}`, discoveryKeyBuffer, { valueEncoding: 'json' })
-        this_.feeds[discoveryKey] = feed
+        this._feeds[discoveryKey] = feed
 
         return feed
     }
