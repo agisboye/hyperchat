@@ -13,4 +13,3 @@ toplevelObject.on('ready', () => {
         toplevelObject.invite(otherPublicKey)
     }
 })
-

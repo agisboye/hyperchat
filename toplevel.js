@@ -72,12 +72,6 @@ class Hyperchat extends EventEmitter {
         let self = this;
 
         const stream = new Protocol(details.client, {
-            // onauthenticate(remotePublicKey, done) {
-            //     console.log('remote person is', remotePublicKey)≥
-            //     // TODO: remotePublicKey is not the same as the remote's discovery key
-            //     done()
-            // },
-            // onhandshake() {}
             timeout: false
         })
 
