@@ -79,7 +79,6 @@ class Hyperchat extends EventEmitter {
 
     _onConnection(socket, details) {
         console.log("Connection received. #topics =", details.topics.length)
-        let self = this;
 
         const stream = new Protocol(details.client, {
             timeout: false
@@ -87,17 +86,17 @@ class Hyperchat extends EventEmitter {
 
         const ext = stream.registerExtension('hyperchat', {
             encoding: 'json',
-            onmessage(message) {
+            onmessage: (message) => {
                 console.log("Protocol message received")
 
                 switch (message.type) {
                     case HYPERCHAT_PROTOCOL_INVITE:
                         let challenge = message.data.challenge
-                        let peerId = self._identity.answerChallenge(challenge)
+                        let peerId = this._identity.answerChallenge(challenge)
                         if (peerId) {
                             console.log('challenge answer succeeded')
-                            self.emit('invite', peerId)
-                            self._inviteStreams[peerId] = stream
+                            this.emit('invite', peerId)
+                            this._inviteStreams[peerId] = stream
                         } else {
                             console.log('challenge answer failed')
                         }
