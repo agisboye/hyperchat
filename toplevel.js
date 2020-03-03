@@ -71,11 +71,15 @@ class Hyperchat extends EventEmitter {
 
         const stream = new Protocol(details.client, {
             // onauthenticate(remotePublicKey, done) {
-            //     console.log('remote person is', remotePublicKey)
+            //     console.log('remote person is', remotePublicKey)≥
             //     // TODO: remotePublicKey is not the same as the remote's discovery key
             //     done()
             // },
             // onhandshake() {}
+            onauthenticate(remotePublicKey, done) {
+                console.log('remote person is', remotePublicKey.toString('hex'))
+                done()
+            },
             timeout: false
         })
 
@@ -110,6 +114,7 @@ class Hyperchat extends EventEmitter {
             if (this._pendingInvites.has(topic)) {
                 let challenge = this._identity.generateChallenge(topic)
 
+                console.log('sending protocol invite...')
                 ext.send({
                     type: HYPERCHAT_PROTOCOL_INVITE,
                     data: challenge
