@@ -7,33 +7,27 @@
         {
             "type": "node",
             "request": "launch",
-            "name": "Launch main w pk",
+            "name": "Launch as A and invite B",
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "program": "${workspaceFolder}/main.js",
+            "args": [
+                "A",
+                "1c744071c7ac7828e5a1284e37531dbb2b0a4aef17cbefdafb6ba0b03ffdca49a1aef5cc4e634f824a711ce3fafc001adc34ba394e0a911f1c1621dec448a46b"
+            ]
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Launch as B",
             "skipFiles": [
                 "<node_internals>/**"
             ],
             "program": "${workspaceFolder}/main.js",
             "args": [
                 "B",
-                "9a5bd7a88b59be48f3287e46d29e91f7c0ae8330409c0fbf012ab60ef083a681a23461048195684835efd55b164128964397ca4f5805852e6fb2bb2abb526409"
             ]
-        },
-        {
-            "type": "node",
-            "request": "launch",
-            "name": "Launch main w/o pk",
-            "skipFiles": [
-                "<node_internals>/**"
-            ],
-            "program": "${workspaceFolder}/main.js"
-        },
-        {
-            "type": "node",
-            "request": "launch",
-            "name": "Launch tmp",
-            "skipFiles": [
-                "<node_internals>/**"
-            ],
-            "program": "${workspaceFolder}/tmp.js",
         }
     ]
 }

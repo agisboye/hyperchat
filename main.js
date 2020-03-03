@@ -1,17 +1,18 @@
-const Hyperchat = require('./toplevel')
+const Hyperchat = require('./hyperchat')
 
-// let name = process.argv[2]
-let knowsOtherPeerID = process.argv[3] !== undefined
+let knowsOtherPublicKey = process.argv[3] !== undefined
 let name = process.argv[2]
-let toplevelObject = new Hyperchat(name)
+let chat = new Hyperchat(name)
 
-toplevelObject.start()
+chat.start()
 
-toplevelObject.on('ready', () => {
-    if (knowsOtherPeerID) {
-        let otherPeerID = process.argv[3].toString('hex')
-        toplevelObject.invite(otherPeerID)
-        toplevelObject.sendMessageTo(otherPeerID, "hello from A!")
+chat.on('ready', () => {
+    if (knowsOtherPublicKey) {
+        let otherPublicKey = process.argv[3].toString('hex')
+        chat.invite(otherPublicKey)
     }
 })
 
+chat.on('invite', (peerId) => {
+    chat.acceptInvite(peerId)
+})
