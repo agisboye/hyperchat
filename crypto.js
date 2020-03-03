@@ -74,12 +74,12 @@ function createPeerID(ownFeedDiscoveryKey, ownPublicKey) {
 
 function encryptMessage(plainMessage, ownPublicKey, ownPrivateKey, otherPeerID) {
     let otherPublicKey = _getPublicKeyFromPeerID(otherPeerID)
-    let encryptionKey = _generateClientKeys(ownPublicKey, ownPrivateKey, otherPublicKey)
+    let { _, tx } = _generateClientKeys(ownPublicKey, ownPrivateKey, otherPublicKey)
     let ciphertext = Buffer.alloc(plainMessage.length + sodium.crypto_secretbox_MACBYTES)
     let message = Buffer.from(plainMessage)
     let nonce = _generateNonce()
 
-    sodium.crypto_secretbox_easy(ciphertext, message, nonce, encryptionKey)
+    sodium.crypto_secretbox_easy(ciphertext, message, nonce, tx)
 
     // Prepend nonce to ciphertext
     return Buffer.concat([nonce, ciphertext])

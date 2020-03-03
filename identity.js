@@ -25,6 +25,10 @@ class Identity {
         return this.getDiscoveryKeyFromPeerID(Buffer.from(peerID, 'hex'))
     }
 
+    getAllKnownPeerIDs() {
+        return Object.keys(this._peers)
+    }
+
     knows(peerID) {
         return this._peers[peerID] !== undefined
     }
@@ -56,9 +60,15 @@ class Identity {
         }
     }
 
+    encryptMessage(plaintext, otherPeerID) {
+        let otherPeerIDBuffer = Buffer.from(otherPeerID, 'hex')
+        let cipherTextBuffer = crypto.encryptMessage(plaintext, this._keypair.pk, this._keypair.sk, otherPeerIDBuffer)
+        return cipherTextBuffer.toString('hex')
+    }
+
     _hexKeypairToBuffers(keypair) {
         return {
-            pk: Buffer.from(keypair.pk, 'hex'),
+            pk: Buffer.from(keypairn.pk, 'hex'),
             sk: Buffer.from(keypair.sk, 'hex')
         }
     }

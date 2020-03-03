@@ -46,8 +46,21 @@ class Hyperchat extends EventEmitter {
         this._identity.addPeer(peerId, false)
     }
 
-    sendMessageTo(name, message) {
+    sendMessageTo(peerID, content) {
+        // encrypt message and append to your own feed
+        let ciphertext = this._identity.encryptMessage(content, peerID)
 
+        let message = {
+            type: 'message',
+            data: {
+                ciphertext: ciphertext
+            }
+        }
+
+        console.log("sending message:", content)
+        this._feed.append(message, err => {
+            if (err) throw err
+        })
     }
 
     join() {
@@ -70,7 +83,7 @@ class Hyperchat extends EventEmitter {
 
     /// Note: self = instance of Hyperchat. Must be passed as argument as 'this' inside 'Protocol'-scope refers to the 'Protocol' instance. 
     _onConnection(socket, details, self) {
-        console.log("Connection received. #topics =", details.topics.length)
+        console.log("Connection received")
 
         const stream = new Protocol(details.client, {
             // onauthenticate(remotePublicKey, done) {
@@ -94,6 +107,11 @@ class Hyperchat extends EventEmitter {
                         let peerId = self._identity.answerChallenge(challenge)
                         if (peerId) {
                             console.log('challenge answer succeeded')
+                            if (self._identity.knows(peerId)) {
+                                // break out if we already knows the peer who tries to invite us
+                                console.log('already knows', peerId)
+                                break
+                            }
                             self.acceptInvite(peerId)
                             let peerFeedKey = self._identity.getDiscoveryKeyFromPeerID(peerId)
                             self._replicate(peerFeedKey, stream)
@@ -141,6 +159,10 @@ class Hyperchat extends EventEmitter {
     _replicate(discoveryKey, stream) {
         let feed = this._getFeed(discoveryKey)
         feed.replicate(stream, { live: true })
+        let readStream = feed.createReadStream({ live: true })
+        readStream.on('data', data => {
+            console.log("data happened!", data)
+        })
     }
 
     _getFeed(discoveryKey) {
@@ -154,7 +176,6 @@ class Hyperchat extends EventEmitter {
 
         return feed
     }
-
 }
 
 module.exports = Hyperchat
