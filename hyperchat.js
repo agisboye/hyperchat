@@ -90,14 +90,8 @@ class Hyperchat extends EventEmitter {
         this._swarm.join(this._feed.discoveryKey, { lookup: false, announce: true })
     }
 
-<<<<<<< HEAD:toplevel.js
-    /// Note: self = instance of Hyperchat. Must be passed as argument as 'this' inside 'Protocol'-scope refers to the 'Protocol' instance. 
-    _onConnection(socket, details, self) {
-        console.log("Connection received")
-=======
     _onConnection(socket, details) {
         console.log("Connection received. #topics =", details.topics.length)
->>>>>>> master:hyperchat.js
 
         const stream = new Protocol(details.client, {
             timeout: false
@@ -114,19 +108,8 @@ class Hyperchat extends EventEmitter {
                         let peerId = this._identity.answerChallenge(challenge)
                         if (peerId) {
                             console.log('challenge answer succeeded')
-<<<<<<< HEAD:toplevel.js
-                            if (self._identity.knows(peerId)) {
-                                // break out if we already knows the peer who tries to invite us
-                                console.log('already knows', peerId)
-                                break
-                            }
-                            self.acceptInvite(peerId)
-                            let peerFeedKey = self._identity.getDiscoveryKeyFromPeerID(peerId)
-                            self._replicate(peerFeedKey, stream)
-=======
                             this.emit('invite', peerId)
                             this._inviteStreams[peerId] = stream
->>>>>>> master:hyperchat.js
                         } else {
                             console.log('challenge answer failed')
                         }
