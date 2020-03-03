@@ -14,15 +14,15 @@ class Identity {
 
     /// returns own peerID
     me() {
-        return this._peerID
+        return this._peerID.toString('hex')
     }
 
     addPeer(peerID, isInitiator) {
         // TODO: Should be no-op if we already know peer but right now we can change who is initiator.
         this._peers[peerID] = isInitiator
-        let l = peerID.length
         this._save()
-        return this.getDiscoveryKeyFromPeerID(Buffer.from(peerID, 'hex'))
+        console.log(this._peers)
+        return this.getDiscoveryKeyFromPeerID(Buffer.from(peerID, 'hex')).toString('hex')
     }
 
     knows(peerID) {
@@ -44,11 +44,11 @@ class Identity {
 
         let otherPeerIDBuffer = Buffer.from(peerIDContainingTopic, 'hex')
 
-        return crypto.generateChallenge(this._keypair.sk, this._keypair.pk, this._peerID, otherPeerIDBuffer)
+        return crypto.generateChallenge(this._keypair.sk, this._keypair.pk, this._peerID, otherPeerIDBuffer).toString('hex')
     }
 
     answerChallenge(ciphertext) {
-        return crypto.answerChallenge(ciphertext, this._keypair.pk, this._keypair.sk)
+        return crypto.answerChallenge(Buffer.from(ciphertext, 'hex'), this._keypair.pk, this._keypair.sk)
     }
 
     _hexKeypairToBuffers(keypair) {
