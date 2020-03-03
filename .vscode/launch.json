@@ -13,7 +13,8 @@
             ],
             "program": "${workspaceFolder}/main.js",
             "args": [
-                "e4f997c2a92ef698984f73ded65eec75db73d8b04a11035d4fc0ca0fd3278588d27c41f402e4422460b9b84362b2ecd3b5e066678ce52a5a70d7338515551c05"
+                "B",
+                "4c4e254b7ed29b98824673823feceb64aeedfb217c9e7db849982eb370319ea2c80d3aaead3f30947db7eca9f0c652bd10bc4bf0f81e4d8786f7438cecc45c6b"
             ]
         },
         {
