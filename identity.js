@@ -22,6 +22,9 @@ class Identity {
         this._peers[peerID] = isInitiator
         let l = peerID.length
         this._save()
+
+        console.log('isInitiator', isInitiator)
+        console.log(this._peers)
         return this.getDiscoveryKeyFromPeerID(Buffer.from(peerID, 'hex'))
     }
 

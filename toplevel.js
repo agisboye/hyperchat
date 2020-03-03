@@ -41,7 +41,7 @@ class Hyperchat extends EventEmitter {
     }
 
     acceptInvite(peerId) {
-        let peerFeedKey = this._identity.addPeer(peerId, false)
+        this._identity.addPeer(peerId, false)
     }
 
     sendMessageTo(name, message) {
@@ -77,10 +77,6 @@ class Hyperchat extends EventEmitter {
             //     done()
             // },
             // onhandshake() {}
-            onauthenticate(remotePublicKey, done) {
-                console.log('remote person is', remotePublicKey.toString('hex'))
-                done()
-            },
             timeout: false
         })
 
