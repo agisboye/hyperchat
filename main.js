@@ -12,3 +12,7 @@ chat.on('ready', () => {
         chat.invite(otherPublicKey)
     }
 })
+
+chat.on('invite', (peerId) => {
+    chat.acceptInvite(peerId)
+})

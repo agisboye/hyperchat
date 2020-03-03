@@ -20,6 +20,10 @@ class Hyperchat extends EventEmitter {
         // TODO: Persist pending invites somewhere?
         // TODO: When someone starts replicating with us, remove them from the list of pending invites. Replicating with someone is how an invite is accepted.
         this._pendingInvites = new Set()
+
+        // Streams from peers that have sent an invite which has not yet been accepted/rejected.
+        // Keyed by peerID.
+        this._inviteStreams = {}
     }
 
     /** Public API **/
@@ -41,7 +45,14 @@ class Hyperchat extends EventEmitter {
 
     acceptInvite(peerId) {
         console.log('accepting invite')
-        this._identity.addPeer(peerId, false)
+        let peerFeedKey = this._identity.addPeer(peerId, false)
+        
+        let stream = this._inviteStreams[peerId]
+        
+        if (stream) {
+            delete this._inviteStreams[peerId]
+            this._replicate(peerFeedKey, stream)
+        }
     }
 
     sendMessageTo(name, message) {
@@ -66,7 +77,6 @@ class Hyperchat extends EventEmitter {
         this._swarm.join(this._feed.discoveryKey, { lookup: false, announce: true })
     }
 
-    /// Note: self = instance of Hyperchat. Must be passed as argument as 'this' inside 'Protocol'-scope refers to the 'Protocol' instance. 
     _onConnection(socket, details) {
         console.log("Connection received. #topics =", details.topics.length)
         let self = this;
@@ -82,14 +92,12 @@ class Hyperchat extends EventEmitter {
 
                 switch (message.type) {
                     case HYPERCHAT_PROTOCOL_INVITE:
-                        // Attempt to decrypt the challenge. If decryption succeeds, we have the peerID of the peer that is sending us an invite.
                         let challenge = message.data.challenge
                         let peerId = self._identity.answerChallenge(challenge)
                         if (peerId) {
                             console.log('challenge answer succeeded')
-                            self.acceptInvite(peerId)
-                            let peerFeedKey = self._identity.getDiscoveryKeyFromPeerID(peerId)
-                            self._replicate(peerFeedKey, stream)
+                            self.emit('invite', peerId)
+                            self._inviteStreams[peerId] = stream
                         } else {
                             console.log('challenge answer failed')
                         }
