@@ -14,7 +14,7 @@ class Identity {
 
     /// returns own peerID
     me() {
-        return this._peerID
+        return this._peerID.toString('hex')
     }
 
     addPeer(peerID, isInitiator) {
@@ -44,7 +44,7 @@ class Identity {
 
         let otherPeerIDBuffer = Buffer.from(peerIDContainingTopic, 'hex')
 
-        return crypto.generateChallenge(this._keypair.sk, this._keypair.pk, this._peerID, otherPeerIDBuffer)
+        return crypto.generateChallenge(this._keypair.sk, this._keypair.pk, this._peerID, otherPeerIDBuffer).toString('hex')
     }
 
     answerChallenge(ciphertext) {

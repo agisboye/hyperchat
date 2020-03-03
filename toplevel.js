@@ -24,7 +24,7 @@ class Hyperchat extends EventEmitter {
     start() {
         this._feed.ready(() => {
             this._identity = new Identity(this._feed.discoveryKey)
-            console.log(`Peer ID: ${this._identity.me().toString("hex")}`)
+            console.log(`Peer ID: ${this._identity.me()}`)
             this._announceSelf()
             this._swarm.on('connection', (socket, details) => this._onConnection(socket, details, this))
             this.emit('ready')
@@ -41,6 +41,7 @@ class Hyperchat extends EventEmitter {
     }
 
     acceptInvite(peerId) {
+        console.log('accepting invite')
         let peerFeedKey = this._identity.addPeer(peerId, false)
     }
 
@@ -114,7 +115,7 @@ class Hyperchat extends EventEmitter {
                 ext.send({
                     type: HYPERCHAT_PROTOCOL_INVITE,
                     data: {
-                        challenge: challenge.toString('hex')
+                        challenge: challenge
                     }
                 })
             }
