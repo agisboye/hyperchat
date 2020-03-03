@@ -17,7 +17,7 @@ class Hyperchat extends EventEmitter {
 
         // TODO: Persist pending invites somewhere?
         // TODO: When someone starts replicating with us, remove them from the list of pending invites. Replicating with someone is how an invite is accepted.
-        this._pendoingInvites = new Set()
+        this._pendingInvites = new Set()
     }
 
     /** Public API **/
