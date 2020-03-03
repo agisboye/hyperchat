@@ -37,6 +37,7 @@ class Hyperchat extends EventEmitter {
         let peerFeedKey = this._identity.addPeer(peerId, true)
 
         this._pendingInvites.add(peerFeedKey)
+        console.log('Invite: Joining discoveryKey:', peerFeedKey)
         this._swarm.join(Buffer.from(peerFeedKey, 'hex'), { lookup: true, announce: false })
     }
 
@@ -63,7 +64,7 @@ class Hyperchat extends EventEmitter {
 
     /** Private API **/
     _announceSelf() {
-        console.log("Announcing self")
+        console.log("Announcing self. Discorykey:", this._feed.discoveryKey.toString('hex'))
         this._swarm.join(this._feed.discoveryKey, { lookup: false, announce: true })
     }
 
