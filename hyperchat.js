@@ -46,9 +46,9 @@ class Hyperchat extends EventEmitter {
     acceptInvite(peerId) {
         console.log('accepting invite')
         let peerFeedKey = this._identity.addPeer(peerId, false)
-        
+
         let stream = this._inviteStreams[peerId]
-        
+
         if (stream) {
             delete this._inviteStreams[peerId]
             this._replicate(peerFeedKey, stream)
@@ -91,7 +91,7 @@ class Hyperchat extends EventEmitter {
     }
 
     _onConnection(socket, details) {
-        console.log("Connection received. #topics =", details.topics.length)
+        console.log("Connection received.")
 
         const stream = new Protocol(details.client, {
             timeout: false
@@ -137,7 +137,7 @@ class Hyperchat extends EventEmitter {
                 })
             }
 
-            if (this._identity.knows(topic)) {
+            if (this._identity.knows(topic.toString('hex'))) {
                 // If we have this topic among our known peers, we replicate it.
                 this._replicate(topic, stream)
 
@@ -154,6 +154,8 @@ class Hyperchat extends EventEmitter {
     _replicate(discoveryKey, stream) {
         let feed = this._getFeed(discoveryKey)
         feed.replicate(stream, { live: true })
+        
+        //NOTE: For debugging purposes
         let readStream = feed.createReadStream({ live: true })
         readStream.on('data', data => {
             console.log("data happened!", data)

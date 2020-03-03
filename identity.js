@@ -29,8 +29,9 @@ class Identity {
         return Object.keys(this._peers)
     }
 
-    knows(peerID) {
-        return this._peers[peerID] !== undefined
+    knows(topic) {
+        let peerIDContainingTopic = this._getFirstPeerIDContainingTopic(topic)
+        return this._peers[peerIDContainingTopic] !== undefined
     }
 
     getDiscoveryKeyFromPeerID(peerID) {
@@ -39,16 +40,19 @@ class Identity {
 
     generateChallenge(topic) {
         // We need to find the peerID containing topic. 
-        // TODO: What if multuple peerIDs contain 'topic'?
-        let topicString = topic.toString('hex')
-        let peerIDContainingTopic = Object.keys(this._peers).find(peerID => {
-            let dk = peerID.substring(0, 64)
-            return dk === topicString
-        })
-
+        let peerIDContainingTopic = this._getFirstPeerIDContainingTopic(topic)
         let otherPeerIDBuffer = Buffer.from(peerIDContainingTopic, 'hex')
 
         return crypto.generateChallenge(this._keypair.sk, this._keypair.pk, this._peerID, otherPeerIDBuffer).toString('hex')
+    }
+
+    // TODO: This is a really shitty solution....... Find a better one
+    _getFirstPeerIDContainingTopic(topicBuffer) {
+        // PeerID is 64 bytes long. First 32 bytes is discoveryKey/topic.
+        // When converting 'topicBuffer' to a 'hex'-string its length becomes 64 as each hex-char is 1/2 byte. 
+        // Therefore the topic/discovery key of 'peerID' is the first 64 characters. 
+        let topicString = topicBuffer.toString('hex')
+        return Object.keys(this._peers).find(peerID => peerID.substring(0, 64) === topicString)
     }
 
     answerChallenge(ciphertext) {
