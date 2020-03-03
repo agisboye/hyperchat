@@ -34,10 +34,14 @@ class Hyperchat extends EventEmitter {
     }
 
     invite(peerId) {
-        console.log('Inviting ' + peerId)
+        if (this._identity.knows(peerId)) {
+            console.log('Already connected to', peerId)
+        } else {
+            console.log('Inviting', peerId)
+            this._pendingInvites.add(peerFeedKey)
+        }
 
         let peerFeedKey = this._identity.addPeer(peerId, true)
-        this._pendingInvites.add(peerFeedKey)
         this._swarm.join(Buffer.from(peerFeedKey, 'hex'), { lookup: true, announce: false })
     }
 
