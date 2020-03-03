@@ -3,8 +3,8 @@ const fs = require('fs')
 
 class Identity {
 
-    constructor(myDiscoveryKey) {
-        this._filepath = "./persistence/identity.json"
+    constructor(name, myDiscoveryKey) {
+        this._filepath = "./persistence" + name + "/identity.json"
         // load keypair and peers from disc
         this._load()
         this._discoveryKey = myDiscoveryKey
@@ -20,7 +20,6 @@ class Identity {
     addPeer(peerID, isInitiator) {
         // TODO: Should be no-op if we already know peer but right now we can change who is initiator.
         this._peers[peerID] = isInitiator
-        let l = peerID.length
         this._save()
         return this.getDiscoveryKeyFromPeerID(Buffer.from(peerID, 'hex'))
     }

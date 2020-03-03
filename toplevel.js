@@ -9,10 +9,12 @@ const HYPERCHAT_PROTOCOL_INVITE = "invite"
 
 class Hyperchat extends EventEmitter {
 
-    constructor() {
+    constructor(name) {
         super()
+        this._name = name
+        this._path = './feeds/' + name + '/'
         this._swarm = hyperswarm()
-        this._feed = hypercore(`./feeds/own`, { valueEncoding: 'json' })
+        this._feed = hypercore(this._path + "own", { valueEncoding: 'json' })
         this._feeds = {}
 
         // TODO: Persist pending invites somewhere?
@@ -23,7 +25,7 @@ class Hyperchat extends EventEmitter {
     /** Public API **/
     start() {
         this._feed.ready(() => {
-            this._identity = new Identity(this._feed.discoveryKey)
+            this._identity = new Identity(this._name, this._feed.discoveryKey)
             console.log(`Peer ID: ${this._identity.me()}`)
             this._announceSelf()
             this._swarm.on('connection', (socket, details) => this._onConnection(socket, details, this))
@@ -148,7 +150,7 @@ class Hyperchat extends EventEmitter {
         if (feed) return feed
 
         let discoveryKeyBuffer = Buffer.from(discoveryKey, 'hex')
-        feed = hypercore(`./feeds/${discoveryKey}`, discoveryKeyBuffer, { valueEncoding: 'json' })
+        feed = hypercore(this._path + `${discoveryKey}`, discoveryKeyBuffer, { valueEncoding: 'json' })
         this._feeds[discoveryKey] = feed
 
         return feed
