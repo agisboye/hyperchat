@@ -77,10 +77,6 @@ class Hyperchat extends EventEmitter {
             //     done()
             // },
             // onhandshake() {}
-            onauthenticate(remotePublicKey, done) {
-                console.log('remote person is', remotePublicKey.toString('hex'))
-                done()
-            },
             timeout: false
         })
 
