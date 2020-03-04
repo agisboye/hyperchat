@@ -41,12 +41,6 @@ class Identity {
         // We need to find the peerID containing topic. 
         let peerIDContainingTopic = this._getFirstPeerIDContainingTopic(topic)
         let otherPeerIDBuffer = Buffer.from(peerIDContainingTopic, 'hex')
-
-        console.log('----Generating Challenge---')
-        console.log('peerID:', otherPeerIDBuffer.toString('hex'))
-        console.log('---------------------------')
-
-
         return crypto.generateChallenge(this._keypair.sk, this._keypair.pk, this._peerID, otherPeerIDBuffer).toString('hex')
     }
 
