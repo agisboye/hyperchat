@@ -54,12 +54,6 @@ class Hyperchat extends EventEmitter {
             this._replicate(peerFeedKey, stream)
         }
 
-        let testFeed = this._getFeed(peerFeedKey)
-        testFeed.ready(() => {
-            testFeed.get(0, (err, data) => {
-                console.log(data)
-            })
-        })
     }
 
     sendMessageTo(peerID, content) {
@@ -93,7 +87,6 @@ class Hyperchat extends EventEmitter {
 
     /** Private API **/
     _announceSelf() {
-        console.log("Announcing self")
         this._swarm.join(this._feed.key, { lookup: false, announce: true })
     }
 
@@ -135,7 +128,6 @@ class Hyperchat extends EventEmitter {
             if (this._pendingInvites.has(topic.toString('hex'))) {
                 let challenge = this._identity.generateChallenge(topic)
 
-                console.log('sending protocol invite...')
                 ext.send({
                     type: HYPERCHAT_PROTOCOL_INVITE,
                     data: {
@@ -147,12 +139,6 @@ class Hyperchat extends EventEmitter {
             if (this._identity.knows(topic.toString('hex'))) {
                 // If we have this topic among our known peers, we replicate it.
                 this._replicate(topic, stream)
-
-            } else if (topic.equals(this._feed.key)) {
-                // If the topic is our own feed, we also replicate it.
-                console.log('replicating self')
-                this._replicate(this._feed.key, stream)
-
             }
         }
 
@@ -161,15 +147,8 @@ class Hyperchat extends EventEmitter {
     }
 
     _replicate(key, stream) {
-        console.log('replicating', key.toString('hex'))
         let feed = this._getFeed(key)
         feed.replicate(stream, { live: true })
-
-        //NOTE: For debugging purposes
-        let readStream = feed.createReadStream({ live: true })
-        readStream.on('data', data => {
-            console.log("data happened!", data)
-        })
     }
 
     _getFeed(key) {
