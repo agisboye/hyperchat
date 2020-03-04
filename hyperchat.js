@@ -108,8 +108,8 @@ class Hyperchat extends EventEmitter {
                         let peerId = this._identity.answerChallenge(challenge)
                         if (peerId) {
                             console.log('challenge answer succeeded')
-                            this.emit('invite', peerId)
                             this._inviteStreams[peerId] = stream
+                            this.emit('invite', peerId)
                         } else {
                             console.log('challenge answer failed')
                         }
