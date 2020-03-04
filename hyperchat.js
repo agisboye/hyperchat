@@ -152,9 +152,10 @@ class Hyperchat extends EventEmitter {
     }
 
     _replicate(discoveryKey, stream) {
+        console.log('replicating with', discoveryKey.toString('hex'))
         let feed = this._getFeed(discoveryKey)
         feed.replicate(stream, { live: true })
-        
+
         //NOTE: For debugging purposes
         let readStream = feed.createReadStream({ live: true })
         readStream.on('data', data => {
@@ -167,8 +168,7 @@ class Hyperchat extends EventEmitter {
 
         if (feed) return feed
 
-        let discoveryKeyBuffer = Buffer.from(discoveryKey, 'hex')
-        feed = hypercore(this._path + `${discoveryKey}`, discoveryKeyBuffer, { valueEncoding: 'json' })
+        feed = hypercore(this._path + `${discoveryKey}`, discoveryKey, { valueEncoding: 'json' })
         this._feeds[discoveryKey] = feed
 
         return feed
