@@ -146,7 +146,7 @@ class Hyperchat extends EventEmitter {
             }
         }
 
-        this._replicate(this._feed.key.toString('hex'), stream)
+        this._replicate(this._feed.key, stream)
         pump(stream, socket, stream)
     }
 

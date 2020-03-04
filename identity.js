@@ -39,7 +39,7 @@ class Identity {
     }
 
     getPublicKeyFromDiscoveryKey(discoveryKey) {
-        return this._getPublicKeyFromPeerID(this._getFirstPeerIDMatchingTopic(discoveryKey))
+        return this.getPublicKeyFromPeerID(this._getFirstPeerIDMatchingTopic(discoveryKey))
     }
 
     generateChallenge(topic) {
