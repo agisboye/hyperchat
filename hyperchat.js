@@ -58,10 +58,7 @@ class Hyperchat extends EventEmitter {
 
         let testFeed = this._getFeed(peerFeedKey)
         testFeed.ready(() => {
-            console.log(testFeed)
-            console.log('ready!!', peerFeedKey.toString('hex'))
             testFeed.get(0, (err, data) => {
-                console.log('DATA!')
                 console.log(data)
             })
         })
@@ -152,15 +149,16 @@ class Hyperchat extends EventEmitter {
             if (this._identity.knows(topic.toString('hex'))) {
                 // If we have this topic among our known peers, we replicate it.
                 this._replicate(topic, stream)
-                //TODO: Cannot '===' on buffers. Change to use Buffer.equal
-            } else if (topic === this._feed.key) {
+
+            } else if (topic.equals(this._feed.key)) {
                 // If the topic is our own feed, we also replicate it.
                 console.log('replicating self')
-                this._feed.replicate(stream, { live: true })
+                this._replicate(this._feed.key, stream)
 
             }
         }
-        this._feed.replicate(stream, { live: true })
+
+        this._replicate(this._feed.key, stream)
         pump(stream, socket, stream)
     }
 
@@ -177,6 +175,11 @@ class Hyperchat extends EventEmitter {
     }
 
     _getFeed(key) {
+        // if (key.equals(this._feed.key)) {
+        if (key === this._feed.key.toString('hex')) {
+            return this._feed
+        }
+        
         let feed = this._feeds[key]
 
         if (feed) return feed
