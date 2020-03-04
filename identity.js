@@ -3,12 +3,12 @@ const fs = require('fs')
 
 class Identity {
 
-    constructor(name, myDiscoveryKey) {
+    constructor(name, myPublicKey) {
         this._filepath = "./persistence/identity" + name + ".json"
         // load keypair and peers from disc
         this._load()
-        this._discoveryKey = myDiscoveryKey
-        this._peerID = crypto.createPeerID(this._discoveryKey, this._keypair.pk)
+        this._publicKey = myPublicKey
+        this._peerID = crypto.createPeerID(this._publicKey, this._keypair.pk)
     }
 
     /// returns own peerID
@@ -20,8 +20,8 @@ class Identity {
         // TODO: Should be no-op if we already know peer but right now we can change who is initiator.
         this._peers[peerID] = isInitiator
         this._save()
-        console.log(this._peers)
-        return this.getDiscoveryKeyFromPeerID(Buffer.from(peerID, 'hex'))
+        console.log('known peers:', this._peers)
+        return this.getPublicKeyFromPeerID(Buffer.from(peerID, 'hex'))
     }
 
     getAllKnownPeerIDs() {
@@ -33,7 +33,7 @@ class Identity {
         return this._peers[peerIDContainingTopic] !== undefined
     }
 
-    getDiscoveryKeyFromPeerID(peerID) {
+    getPublicKeyFromPeerID(peerID) {
         return crypto.getDiscoveryKeyFromPeerID(Buffer.from(peerID, 'hex')).toString('hex')
     }
 

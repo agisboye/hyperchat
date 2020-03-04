@@ -29,7 +29,7 @@ class Hyperchat extends EventEmitter {
     /** Public API **/
     start() {
         this._feed.ready(() => {
-            this._identity = new Identity(this._name, this._feed.discoveryKey)
+            this._identity = new Identity(this._name, this._feed.key)
             console.log(`Peer ID: ${this._identity.me()}`)
             this._announceSelf()
             this._swarm.on('connection', (socket, details) => this._onConnection(socket, details))
@@ -53,6 +53,16 @@ class Hyperchat extends EventEmitter {
             delete this._inviteStreams[peerId]
             this._replicate(peerFeedKey, stream)
         }
+
+        let testFeed = this._getFeed(peerFeedKey)
+        testFeed.ready(() => {
+            console.log(testFeed)
+            console.log('ready!!', peerFeedKey.toString('hex'))
+            testFeed.get(0, (err, data) => {
+                console.log('DATA!')
+                console.log(data)
+            })
+        })
     }
 
     sendMessageTo(peerID, content) {
@@ -66,7 +76,7 @@ class Hyperchat extends EventEmitter {
             }
         }
 
-        console.log("sending message:", content)
+        console.log("sending message on feed:", this._feed.key.toString('hex'))
         this._feed.append(message, err => {
             if (err) throw err
         })
@@ -87,7 +97,7 @@ class Hyperchat extends EventEmitter {
     /** Private API **/
     _announceSelf() {
         console.log("Announcing self")
-        this._swarm.join(this._feed.discoveryKey, { lookup: false, announce: true })
+        this._swarm.join(this._feed.key, { lookup: false, announce: true })
     }
 
     _onConnection(socket, details) {
@@ -140,20 +150,21 @@ class Hyperchat extends EventEmitter {
             if (this._identity.knows(topic.toString('hex'))) {
                 // If we have this topic among our known peers, we replicate it.
                 this._replicate(topic, stream)
-
-            } else if (topic === this._feed.discoveryKey) {
+            //TODO: Cannot '===' on buffers. Change to use Buffer.equal
+            } else if (topic === this._feed.key) {
                 // If the topic is our own feed, we also replicate it.
-                this_.feed.replicate(stream, { live: true })
+                console.log('replicating self')
+                this._feed.replicate(stream, { live: true })
 
             }
         }
-
+        this._feed.replicate(stream, { live: true })
         pump(stream, socket, stream)
     }
 
-    _replicate(discoveryKey, stream) {
-        console.log('replicating with', discoveryKey.toString('hex'))
-        let feed = this._getFeed(discoveryKey)
+    _replicate(key, stream) {
+        console.log('replicating', key.toString('hex'))
+        let feed = this._getFeed(key)
         feed.replicate(stream, { live: true })
 
         //NOTE: For debugging purposes
@@ -163,13 +174,13 @@ class Hyperchat extends EventEmitter {
         })
     }
 
-    _getFeed(discoveryKey) {
-        let feed = this._feeds[discoveryKey]
+    _getFeed(key) {
+        let feed = this._feeds[key]
 
         if (feed) return feed
 
-        feed = hypercore(this._path + `${discoveryKey.toString('hex')}`, discoveryKey, { valueEncoding: 'json' })
-        this._feeds[discoveryKey] = feed
+        feed = hypercore(this._path + `${key.toString('hex')}`, key, { valueEncoding: 'json' })
+        this._feeds[key] = feed
 
         return feed
     }
