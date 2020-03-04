@@ -54,7 +54,8 @@ class Identity {
             let publicKey = peerID.substring(0, 64)
             let publicKeyBuffer = Buffer.from(publicKey, 'hex')
             let discoveryKeyBuffer = crypto.dicoveryKeyFromPublicKey(publicKeyBuffer)
-            return discoveryKeyBuffer === topicString
+            let discoveryKey = discoveryKeyBuffer.toString('hex')
+            return discoveryKey === topicString
         })
     }
 
@@ -65,6 +66,10 @@ class Identity {
         } else {
             return null
         }
+    }
+
+    dicoveryKeyFromPublicKey(publicKey) {
+        return crypto.dicoveryKeyFromPublicKey(Buffer.from(publicKey, 'hex')).toString('hex')
     }
 
     encryptMessage(plaintext, otherPeerID) {
