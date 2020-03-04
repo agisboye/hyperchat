@@ -67,10 +67,11 @@ class Hyperchat extends EventEmitter {
     sendMessageTo(peerID, content) {
         // encrypt message and append to your own feed
         let ciphertext = this._identity.encryptMessage(content, peerID)
-
+        let chatID = this._identity.makeChatIDClient(peerID).toString('hex')
         let message = {
             type: 'message',
             data: {
+                chatID: chatID,
                 ciphertext: ciphertext
             }
         }
@@ -148,7 +149,7 @@ class Hyperchat extends EventEmitter {
 
             if (this._identity.knows(topic.toString('hex'))) {
                 // If we have this topic among our known peers, we replicate it.
-                this._replicate(topic, stream)
+                this._replicate(topic.toString('hex'), stream)
 
             } else if (topic.equals(this._feed.key)) {
                 // If the topic is our own feed, we also replicate it.
@@ -158,7 +159,7 @@ class Hyperchat extends EventEmitter {
             }
         }
 
-        this._replicate(this._feed.key, stream)
+        this._replicate(this._feed.key.toString('hex'), stream)
         pump(stream, socket, stream)
     }
 
@@ -169,8 +170,12 @@ class Hyperchat extends EventEmitter {
 
         //NOTE: For debugging purposes
         let readStream = feed.createReadStream({ live: true })
-        readStream.on('data', data => {
-            console.log("data happened!", data)
+        readStream.on('data', message => {
+            console.log('data!!')
+            let content = message.data
+            let plaintext = this._identity.decryptMessage(content, feed.discoveryKey)
+
+            console.log(plaintext)
         })
     }
 
@@ -179,7 +184,7 @@ class Hyperchat extends EventEmitter {
         if (key === this._feed.key.toString('hex')) {
             return this._feed
         }
-        
+
         let feed = this._feeds[key]
 
         if (feed) return feed

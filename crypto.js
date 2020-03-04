@@ -82,7 +82,7 @@ function encryptMessage(plainMessage, ownPublicKey, ownPrivateKey, otherPeerID) 
     let otherPublicKey = _getPublicKeyFromPeerID(otherPeerID)
     let { _, tx } = _generateClientKeys(ownPublicKey, ownPrivateKey, otherPublicKey)
     let ciphertext = Buffer.alloc(plainMessage.length + sodium.crypto_secretbox_MACBYTES)
-    let message = Buffer.from(plainMessage)
+    let message = Buffer.from(plainMessage, 'utf-8')
     let nonce = _generateNonce()
 
     sodium.crypto_secretbox_easy(ciphertext, message, nonce, tx)
@@ -93,17 +93,17 @@ function encryptMessage(plainMessage, ownPublicKey, ownPrivateKey, otherPeerID) 
 
 function decryptMessage(cipherAndNonce, ownPublicKey, ownPrivateKey, otherPeerID) {
     let otherPublicKey = _getPublicKeyFromPeerID(otherPeerID)
-    let decryptionKey = _generateServerKey(ownPublicKey, ownPrivateKey, otherPublicKey)
+    let { rx, _ } = _generateServerKey(ownPublicKey, ownPrivateKey, otherPublicKey)
 
     let { nonce, cipher } = _splitNonceAndCipher(cipherAndNonce)
 
     let plainTextBuffer = Buffer.alloc(cipher.length - sodium.crypto_secretbox_MACBYTES)
 
-    if (sodium.crypto_secretbox_open_easy(plainTextBuffer, cipher, nonce, decryptionKey)) {
+    if (sodium.crypto_secretbox_open_easy(plainTextBuffer, cipher, nonce, rx)) {
         return plainTextBuffer
     } else {
         // Decryption failed. 
-        throw new Error("decryptMessage failed.")
+        return null
     }
 }
 
@@ -157,6 +157,12 @@ function answerChallenge(ciphertext, ownPublicKey, ownSecretKey) {
 
 }
 
+function makeChatIDClient(clientPublicKey, clientSecretKey, serverPublicKey) {
+    let output = Buffer.alloc(sodium.crypto_generichash_BYTES_MAX)
+    let { _, tx } = _generateClientKeys(clientPublicKey, clientSecretKey, serverPublicKey)
+    sodium.crypto_generichash(output, tx)
+    return output
+}
 
 module.exports = {
     getFeedKeyFromPeerID,
@@ -166,7 +172,8 @@ module.exports = {
     generateChallenge,
     answerChallenge,
     generateKeyPair,
-    dicoveryKeyFromPublicKey
+    dicoveryKeyFromPublicKey,
+    makeChatIDClient
 }
 
 // server
