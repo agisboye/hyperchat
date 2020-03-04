@@ -79,6 +79,26 @@ class Identity {
         return this._peers[id.toString('hex')]
     }
 
+    decryptMessage(content, topic) {
+        let otherPeerID = this._getFirstPeerIDMatchingTopic(topic)
+        let otherPublicKey = this.getPublicKeyFromPeerID(otherPeerID)
+
+        let hashChallenger = crypto.makeChatIDClient()
+        // check on chatID if the message is for you before trying to decrypt. 
+        // TODO: Not fully implemented
+        let chatID = crypto.makeChatIDClient()
+
+        let ciphertext = content.ciphertext
+
+        let cipherBuffer = Buffer.from(ciphertext, 'hex')
+        return crypto.decryptMessage(cipherBuffer, this._keypair.pk, this._keypair.sk, Buffer.from(otherPeerID, 'hex')).toString('utf-8')
+    }
+
+    makeChatIDClient(otherPeerID) {
+        let otherPublicKey = Buffer.from(this.getPublicKeyFromPeerID(otherPeerID), 'hex')
+        return crypto.makeChatIDClient(this._keypair.pk, this._keypair.sk, otherPublicKey)
+    }
+
     _hexKeypairToBuffers(keypair) {
         return {
             pk: Buffer.from(keypair.pk, 'hex'),

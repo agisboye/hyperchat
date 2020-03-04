@@ -60,10 +60,11 @@ class Hyperchat extends EventEmitter {
     sendMessageTo(peerID, content) {
         // encrypt message and append to your own feed
         let ciphertext = this._identity.encryptMessage(content, peerID)
-
+        let chatID = this._identity.makeChatIDClient(peerID).toString('hex')
         let message = {
             type: 'message',
             data: {
+                chatID: chatID,
                 ciphertext: ciphertext
             }
         }
@@ -145,7 +146,7 @@ class Hyperchat extends EventEmitter {
             }
         }
 
-        this._replicate(this._feed.key, stream)
+        this._replicate(this._feed.key.toString('hex'), stream)
         pump(stream, socket, stream)
     }
 
@@ -158,7 +159,7 @@ class Hyperchat extends EventEmitter {
         if (key.equals(this._feed.key)) {
             return this._feed
         }
-        
+
         let feed = this._feeds[key]
 
         if (feed) return feed
