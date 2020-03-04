@@ -29,28 +29,33 @@ class Identity {
     }
 
     knows(topic) {
-        let peerIDContainingTopic = this._getFirstPeerIDContainingTopic(topic)
+        let peerIDContainingTopic = this._getFirstPeerIDMatchingTopic(topic)
         return this._peers[peerIDContainingTopic] !== undefined
     }
 
     getPublicKeyFromPeerID(peerID) {
-        return crypto.getDiscoveryKeyFromPeerID(Buffer.from(peerID, 'hex')).toString('hex')
+        return crypto.getFeedKeyFromPeerID(Buffer.from(peerID, 'hex')).toString('hex')
     }
 
     generateChallenge(topic) {
         // We need to find the peerID containing topic. 
-        let peerIDContainingTopic = this._getFirstPeerIDContainingTopic(topic)
+        let peerIDContainingTopic = this._getFirstPeerIDMatchingTopic(topic)
         let otherPeerIDBuffer = Buffer.from(peerIDContainingTopic, 'hex')
         return crypto.generateChallenge(this._keypair.sk, this._keypair.pk, this._peerID, otherPeerIDBuffer).toString('hex')
     }
 
     // TODO: This is a really shitty solution....... Find a better one
-    _getFirstPeerIDContainingTopic(topicBuffer) {
-        // PeerID is 64 bytes long. First 32 bytes is discoveryKey/topic.
+    _getFirstPeerIDMatchingTopic(topicBuffer) {
+        // PeerID is 64 bytes long. First 32 bytes is feedKey. Topic is discoveryKey, i.e. discoveryKey = hash(publicKey)
         // When converting 'topicBuffer' to a 'hex'-string its length becomes 64 as each hex-char is 1/2 byte. 
-        // Therefore the topic/discovery key of 'peerID' is the first 64 characters. 
+        // Therefore the feed key of 'peerID' is the first 64 characters. 
         let topicString = topicBuffer.toString('hex')
-        return Object.keys(this._peers).find(peerID => peerID.substring(0, 64) === topicString)
+        return Object.keys(this._peers).find(peerID => {
+            let publicKey = peerID.substring(0, 64)
+            let publicKeyBuffer = Buffer.from(publicKey, 'hex')
+            let discoveryKeyBuffer = crypto.dicoveryKeyFromPublicKey(publicKeyBuffer)
+            return discoveryKeyBuffer === topicString
+        })
     }
 
     answerChallenge(ciphertext) {

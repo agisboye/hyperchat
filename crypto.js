@@ -1,6 +1,6 @@
 const sodium = require('sodium-native')
 
-const HYPERCORE_DISCOVERYKEY_SIZE = 32
+const HYPERCORE_KEY_SIZE = 32
 
 function _generateNonce() {
     let nonce = Buffer.alloc(sodium.crypto_secretbox_NONCEBYTES)
@@ -41,13 +41,13 @@ function _generateServerKey(serverPublicKey, serverSecretKey, clientPublicKey) {
 }
 
 function _splitPeerID(peerID) {
-    // First 32 bytes of peerID is discovery key
+    // First 32 bytes of peerID is public key
     // last 32 bytes of peerID is DH public key
-    let discoveryKey = Buffer.alloc(HYPERCORE_DISCOVERYKEY_SIZE)
+    let feedKey = Buffer.alloc(HYPERCORE_KEY_SIZE)
     let publicKey = Buffer.alloc(sodium.crypto_kx_PUBLICKEYBYTES)
-    peerID.copy(discoveryKey, 0, 0, HYPERCORE_DISCOVERYKEY_SIZE)
-    peerID.copy(publicKey, 0, HYPERCORE_DISCOVERYKEY_SIZE, peerID.length)
-    return { discoveryKey, publicKey }
+    peerID.copy(feedKey, 0, 0, HYPERCORE_KEY_SIZE)
+    peerID.copy(publicKey, 0, HYPERCORE_KEY_SIZE, peerID.length)
+    return { feedKey, publicKey }
 }
 
 function _getPublicKeyFromPeerID(peerID) {
@@ -55,6 +55,12 @@ function _getPublicKeyFromPeerID(peerID) {
 }
 
 // ------- public functions ------- //
+
+function dicoveryKeyFromPublicKey(publicKey) {
+    var digest = Buffer.alloc(32)
+    sodium.crypto_generichash(digest, Buffer.from('hypercore'), publicKey)
+    return digest
+}
 
 /// Returns (pk, sk)
 function generateKeyPair() {
@@ -64,12 +70,12 @@ function generateKeyPair() {
     return { pk, sk }
 }
 
-function getDiscoveryKeyFromPeerID(peerID) {
-    return _splitPeerID(peerID).discoveryKey
+function getFeedKeyFromPeerID(peerID) {
+    return _splitPeerID(peerID).feedKey
 }
 
-function createPeerID(ownFeedDiscoveryKey, ownPublicKey) {
-    return Buffer.concat([ownFeedDiscoveryKey, ownPublicKey])
+function createPeerID(ownFeedKey, ownPublicKey) {
+    return Buffer.concat([ownFeedKey, ownPublicKey])
 }
 
 function encryptMessage(plainMessage, ownPublicKey, ownPrivateKey, otherPeerID) {
@@ -153,13 +159,14 @@ function answerChallenge(ciphertext, ownPublicKey, ownSecretKey) {
 
 
 module.exports = {
-    getDiscoveryKeyFromPeerID,
+    getFeedKeyFromPeerID,
     createPeerID,
     encryptMessage,
     decryptMessage,
     generateChallenge,
     answerChallenge,
-    generateKeyPair
+    generateKeyPair,
+    dicoveryKeyFromPublicKey
 }
 
 // server
