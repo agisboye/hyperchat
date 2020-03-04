@@ -6,6 +6,7 @@ class Identity {
     constructor(name, myPublicKey) {
         this._filepath = "./persistence/identity" + name + ".json"
         // load keypair and peers from disc
+        this._peers = {}
         this._load()
         this._publicKey = myPublicKey
         this._peerID = crypto.createPeerID(this._publicKey, this._keypair.pk)
@@ -13,15 +14,15 @@ class Identity {
 
     /// returns own peerID
     me() {
-        return this._peerID.toString('hex')
+        return this._peerID
     }
 
     addPeer(peerID, isInitiator) {
         // TODO: Should be no-op if we already know peer but right now we can change who is initiator.
-        this._peers[peerID] = isInitiator
+        this._peers[peerID.toString('hex')] = isInitiator
         this._save()
         console.log('known peers:', this._peers)
-        return this.getPublicKeyFromPeerID(Buffer.from(peerID, 'hex'))
+        return this.getPublicKeyFromPeerID(peerID)
     }
 
     getAllKnownPeerIDs() {
@@ -30,52 +31,52 @@ class Identity {
 
     knows(topic) {
         let peerIDContainingTopic = this._getFirstPeerIDMatchingTopic(topic)
-        return this._peers[peerIDContainingTopic] !== undefined
+        return this._getPeer(peerIDContainingTopic) !== undefined
     }
 
     getPublicKeyFromPeerID(peerID) {
-        return crypto.getFeedKeyFromPeerID(Buffer.from(peerID, 'hex')).toString('hex')
+        return crypto.getFeedKeyFromPeerID(peerID)
+    }
+
+    getPublicKeyFromDiscoveryKey(discoveryKey) {
+        return this._getPublicKeyFromPeerID(this._getFirstPeerIDMatchingTopic(discoveryKey))
     }
 
     generateChallenge(topic) {
         // We need to find the peerID containing topic. 
         let peerIDContainingTopic = this._getFirstPeerIDMatchingTopic(topic)
-        let otherPeerIDBuffer = Buffer.from(peerIDContainingTopic, 'hex')
-        return crypto.generateChallenge(this._keypair.sk, this._keypair.pk, this._peerID, otherPeerIDBuffer).toString('hex')
+        return crypto.generateChallenge(this._keypair.sk, this._keypair.pk, this._peerID, peerIDContainingTopic)
     }
 
     // TODO: This is a really shitty solution....... Find a better one
-    _getFirstPeerIDMatchingTopic(topicBuffer) {
-        // PeerID is 64 bytes long. First 32 bytes is feedKey. Topic is discoveryKey, i.e. discoveryKey = hash(publicKey)
-        // When converting 'topicBuffer' to a 'hex'-string its length becomes 64 as each hex-char is 1/2 byte. 
-        // Therefore the feed key of 'peerID' is the first 64 characters. 
-        let topicString = topicBuffer.toString('hex')
-        return Object.keys(this._peers).find(peerID => {
-            let publicKey = peerID.substring(0, 64)
-            let publicKeyBuffer = Buffer.from(publicKey, 'hex')
-            let discoveryKeyBuffer = crypto.dicoveryKeyFromPublicKey(publicKeyBuffer)
-            let discoveryKey = discoveryKeyBuffer.toString('hex')
-            return discoveryKey === topicString
+    _getFirstPeerIDMatchingTopic(topic) {
+        return Object.keys(this._peers).map(k => Buffer.from(k, 'hex')).find(peerID => {
+            let publicKey = this.getPublicKeyFromPeerID(peerID)
+            let discoveryKey = crypto.dicoveryKeyFromPublicKey(publicKey)
+            return discoveryKey.equals(topic)
         })
     }
 
     answerChallenge(ciphertext) {
         let res = crypto.answerChallenge(Buffer.from(ciphertext, 'hex'), this._keypair.pk, this._keypair.sk)
         if (res) {
-            return res.toString('hex')
+            return res
         } else {
             return null
         }
     }
 
     dicoveryKeyFromPublicKey(publicKey) {
-        return crypto.dicoveryKeyFromPublicKey(Buffer.from(publicKey, 'hex')).toString('hex')
+        return crypto.dicoveryKeyFromPublicKey(publicKey)
     }
 
     encryptMessage(plaintext, otherPeerID) {
-        let otherPeerIDBuffer = Buffer.from(otherPeerID, 'hex')
-        let cipherTextBuffer = crypto.encryptMessage(plaintext, this._keypair.pk, this._keypair.sk, otherPeerIDBuffer)
-        return cipherTextBuffer.toString('hex')
+        let cipherTextBuffer = crypto.encryptMessage(plaintext, this._keypair.pk, this._keypair.sk, otherPeerID)
+        return cipherTextBuffer
+    }
+
+    _getPeer(id) {
+        return this._peers[id.toString('hex')]
     }
 
     _hexKeypairToBuffers(keypair) {
@@ -98,18 +99,16 @@ class Identity {
             this._keypair = this._hexKeypairToBuffers(obj.keypair)
         }
 
-        this._peers = (obj.peers === undefined) ? {} : obj.peers
+        this._peers = obj.peers || {}
     }
 
     /// Save peers and keypair to disk
     _save() {
-        let hexKeypair = {
-            pk: this._keypair.pk.toString('hex'),
-            sk: this._keypair.sk.toString('hex')
-        }
-
         let obj = JSON.stringify({
-            keypair: hexKeypair,
+            keypair: {
+                pk: this._keypair.pk.toString('hex'),
+                sk: this._keypair.sk.toString('hex')
+            },
             peers: this._peers
         })
 

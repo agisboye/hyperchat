@@ -30,7 +30,6 @@ class Hyperchat extends EventEmitter {
     start() {
         this._feed.ready(() => {
             this._identity = new Identity(this._name, this._feed.key)
-            console.log(`Peer ID: ${this._identity.me()}`)
             this._announceSelf()
             this._swarm.on('connection', (socket, details) => this._onConnection(socket, details))
             this.emit('ready')
@@ -41,7 +40,7 @@ class Hyperchat extends EventEmitter {
         let peerFeedKey = this._identity.addPeer(peerId, true)
 
         let peerDiscoveryKey = this._identity.dicoveryKeyFromPublicKey(peerFeedKey)
-        this._swarm.join(Buffer.from(peerDiscoveryKey, 'hex'), { lookup: true, announce: false })
+        this._swarm.join(peerDiscoveryKey, { lookup: true, announce: false })
         this._pendingInvites.add(peerDiscoveryKey)
     }
 
@@ -128,7 +127,7 @@ class Hyperchat extends EventEmitter {
         for (let topic of details.topics) {
             // Send a challenge to the connecting peer
             // if we are trying to invite on this topic.
-            if (this._pendingInvites.has(topic.toString('hex'))) {
+            if (this._pendingInvites.has(topic)) {
                 let challenge = this._identity.generateChallenge(topic)
 
                 ext.send({
@@ -139,9 +138,10 @@ class Hyperchat extends EventEmitter {
                 })
             }
 
-            if (this._identity.knows(topic.toString('hex'))) {
+            if (this._identity.knows(topic)) {
                 // If we have this topic among our known peers, we replicate it.
-                this._replicate(topic, stream)
+                let publicKey = this._identity.getPublicKeyFromDiscoveryKey(topic)
+                this._replicate(publicKey, stream)
             }
         }
 
@@ -155,8 +155,7 @@ class Hyperchat extends EventEmitter {
     }
 
     _getFeed(key) {
-        // if (key.equals(this._feed.key)) {
-        if (key === this._feed.key.toString('hex')) {
+        if (key.equals(this._feed.key)) {
             return this._feed
         }
         
