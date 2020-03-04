@@ -168,7 +168,7 @@ class Hyperchat extends EventEmitter {
 
         if (feed) return feed
 
-        feed = hypercore(this._path + `${discoveryKey}`, discoveryKey, { valueEncoding: 'json' })
+        feed = hypercore(this._path + `${discoveryKey.toString('hex')}`, discoveryKey, { valueEncoding: 'json' })
         this._feeds[discoveryKey] = feed
 
         return feed

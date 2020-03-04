@@ -9,7 +9,6 @@ class Identity {
         this._load()
         this._discoveryKey = myDiscoveryKey
         this._peerID = crypto.createPeerID(this._discoveryKey, this._keypair.pk)
-        this._save()
     }
 
     /// returns own peerID
@@ -43,6 +42,11 @@ class Identity {
         let peerIDContainingTopic = this._getFirstPeerIDContainingTopic(topic)
         let otherPeerIDBuffer = Buffer.from(peerIDContainingTopic, 'hex')
 
+        console.log('----Generating Challenge---')
+        console.log('peerID:', otherPeerIDBuffer.toString('hex'))
+        console.log('---------------------------')
+
+
         return crypto.generateChallenge(this._keypair.sk, this._keypair.pk, this._peerID, otherPeerIDBuffer).toString('hex')
     }
 
@@ -72,21 +76,25 @@ class Identity {
 
     _hexKeypairToBuffers(keypair) {
         return {
-            pk: Buffer.from(keypairn.pk, 'hex'),
+            pk: Buffer.from(keypair.pk, 'hex'),
             sk: Buffer.from(keypair.sk, 'hex')
         }
     }
 
     _load() {
+        let obj = {}
+
         try {
-            let obj = JSON.parse(fs.readFileSync(this._filepath))
-            this._keypair = (obj.keypair === undefined) ? crypto.generateKeyPair() : this._hexKeypairToBuffers(obj.keypair)
-            this._peers = (obj.peers === undefined) ? {} : obj.peers
-        } catch (err) {
-            // file doesnt exist. Init file with empty json
-            fs.writeFileSync(this._filepath, "{}")
-            this._load()
+            obj = JSON.parse(fs.readFileSync(this._filepath))
+        } catch { }
+        if (obj.keypair === undefined) {
+            this._keypair = crypto.generateKeyPair()
+            this._save()
+        } else {
+            this._keypair = this._hexKeypairToBuffers(obj.keypair)
         }
+
+        this._peers = (obj.peers === undefined) ? {} : obj.peers
     }
 
     /// Save peers and keypair to disk
