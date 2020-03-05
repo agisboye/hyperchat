@@ -46,16 +46,11 @@ class Hyperchat extends EventEmitter {
     }
 
     acceptInvite(peerID) {
-        console.log('accepting invite')
-        let peerFeedKey = this._identity.addPeer(peerID, false)
-
         let stream = this._inviteStreams[peerID]
-
         if (stream) {
             delete this._inviteStreams[peerID]
             this._replicate(peerID, stream)
         }
-
     }
 
     sendMessageTo(peerID, content) {
@@ -70,7 +65,6 @@ class Hyperchat extends EventEmitter {
             }
         }
 
-        console.log("sending message on feed:", this._feed.key.toString('hex'))
         this._feed.append(message, err => {
             if (err) throw err
         })
@@ -90,7 +84,6 @@ class Hyperchat extends EventEmitter {
 
     /** Private API **/
     _announceSelf() {
-        console.log("Announcing self")
         this._swarm.join(this._feed.discoveryKey, { lookup: false, announce: true })
     }
 
@@ -166,7 +159,6 @@ class Hyperchat extends EventEmitter {
         feed.createReadStream({ live: true }).on('data', data => {
             //TODO: Handle the case where 'feed = this._feed' differently? 
             // try to decrypt data
-            console.log(`[${this._name}] New data on peer stream`)
             let decryptedMessage = this._identity.decryptMessage(data, peerID)
             if (decryptedMessage) {
                 this.emit('decryptedMessage', peerID, decryptedMessage)
@@ -192,6 +184,7 @@ class Hyperchat extends EventEmitter {
     _print() {
         console.log('------------------------')
         console.log('> status [hex notation]:')
+        console.log("> Peer ID:", this._identity.me().toString('hex'))
         console.log('> feedkey =', this._feed.key.toString('hex').substring(0, 10) + "...")
         console.log('> disckey =', this._feed.discoveryKey.toString('hex').substring(0, 10) + "...")
         console.log('> public  =', this._identity._keypair.pk.toString('hex').substring(0, 10) + "...")

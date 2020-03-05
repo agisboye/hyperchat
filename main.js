@@ -7,25 +7,29 @@ let chat = new Hyperchat(name)
 chat.start()
 
 chat.on('ready', () => {
-    console.log(`Peer ID: ${chat._identity.me().toString('hex')}`)
-
     if (knowsOtherPeerId) {
         let otherPeerId = Buffer.from(process.argv[3], 'hex')
         chat.invite(otherPeerId)
-        chat.sendMessageTo(otherPeerId, "hello from the other side")
+        process.stdin.on('data', data => {
+            let message = data.toString('utf-8')
+            chat.sendMessageTo(otherPeerId, message)
+        })
     }
 })
 
 chat.on('invite', (peerId) => {
     console.log("Accepting invite")
     chat.acceptInvite(peerId)
-    chat.sendMessageTo(peerId, "I accepted your invite")
 })
 
 chat.on('decryptedMessage', (peerID, message) => {
     console.log('--------')
     console.log('> from:', peerID.toString('hex').substring(0, 10) + "...")
     console.log('> message:', message)
+    process.stdin.on('data', data => {
+        let message = data.toString('utf-8')
+        chat.sendMessageTo(peerID, message)
+    })
 })
 
 // chat._feed.createReadStream({ live: true }).on('data', data => {

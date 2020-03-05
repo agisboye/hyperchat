@@ -86,7 +86,6 @@ class Identity {
 
     decryptMessage(letter, otherPeerID) {
         let otherPublicKey = crypto.getPublicKeyFromPeerID(otherPeerID)
-        let temp = otherPublicKey.toString('hex')
         let incomingChatID = Buffer.from(letter.data.chatID, 'hex')
 
         if (crypto.chatIDsMatch(incomingChatID, this._keypair.pk, this._keypair.sk, otherPublicKey)) {
