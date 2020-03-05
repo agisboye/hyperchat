@@ -30,6 +30,7 @@ class Hyperchat extends EventEmitter {
     start() {
         this._feed.ready(() => {
             this._identity = new Identity(this._name, this._feed.key)
+            this._print()
             this._announceSelf()
             this._swarm.on('connection', (socket, details) => this._onConnection(socket, details))
             this.emit('ready')
@@ -44,15 +45,15 @@ class Hyperchat extends EventEmitter {
         this._pendingInvites.add(peerDiscoveryKey)
     }
 
-    acceptInvite(peerId) {
+    acceptInvite(peerID) {
         console.log('accepting invite')
-        let peerFeedKey = this._identity.addPeer(peerId, false)
+        let peerFeedKey = this._identity.addPeer(peerID, false)
 
-        let stream = this._inviteStreams[peerId]
+        let stream = this._inviteStreams[peerID]
 
         if (stream) {
-            delete this._inviteStreams[peerId]
-            this._replicate(peerFeedKey, stream)
+            delete this._inviteStreams[peerID]
+            this._replicate(peerID, stream)
         }
 
     }
@@ -85,14 +86,6 @@ class Hyperchat extends EventEmitter {
 
     getAllMessagesFrom(name, index) {
         return []
-    }
-
-    getReadstreamFor(peerID) {
-        let publicKey = this._identity.getPublicKeyFromPeerID(peerID)
-        let feed = this._getFeed(publicKey)
-
-        let materializedView = ""
-        return materializedView
     }
 
     /** Private API **/
@@ -149,40 +142,61 @@ class Hyperchat extends EventEmitter {
 
             if (this._identity.knows(topic)) {
                 // If we have this topic among our known peers, we replicate it.
-                let publicKey = this._identity.getPublicKeyFromDiscoveryKey(topic)
-                this._replicate(publicKey, stream)
+                let peerID = this._identity.getFirstPeerIDMatchingTopic(topic)
+                this._replicate(peerID, stream)
             }
         }
 
-        this._replicate(this._feed.key, stream)
+        this._replicate(this._identity.me(), stream)
         pump(stream, socket, stream)
     }
 
-    _replicate(key, stream) {
-        let feed = this._getFeed(key)
+    _replicate(peerID, stream) {
+        let feedPublicKey = this._identity.getFeedPublicKeyFromPeerID(peerID)
+        let feed = this._getFeed(feedPublicKey)
         feed.replicate(stream, { live: true })
 
-        //TOOD: Should be put in seperate funciton
+        this._setupReadStreamFor(peerID)
+    }
+
+    _setupReadStreamFor(peerID) {
+        let feedPublicKey = this._identity.getFeedPublicKeyFromPeerID(peerID)
+        let feed = this._getFeed(feedPublicKey)
+
         feed.createReadStream({ live: true }).on('data', data => {
+            //TODO: Handle the case where 'feed = this._feed' differently? 
             // try to decrypt data
             console.log(`[${this._name}] New data on peer stream`)
-            console.log(data)
+            let decryptedMessage = this._identity.decryptMessage(data, peerID)
+            if (decryptedMessage) {
+                this.emit('decryptedMessage', peerID, decryptedMessage)
+            }
         })
     }
 
-    _getFeed(key) {
-        if (key.equals(this._feed.key)) {
+    _getFeed(feedPublicKey) {
+        if (feedPublicKey.equals(this._feed.key)) {
             return this._feed
         }
 
-        let feed = this._feeds[key]
+        let feed = this._feeds[feedPublicKey.toString('hex')]
 
         if (feed) return feed
 
-        feed = hypercore(this._path + `${key.toString('hex')}`, key, { valueEncoding: 'json' })
-        this._feeds[key] = feed
+        feed = hypercore(this._path + `${feedPublicKey.toString('hex')}`, feedPublicKey, { valueEncoding: 'json' })
+        this._feeds[feedPublicKey.toString('hex')] = feed
 
         return feed
+    }
+
+    _print() {
+        console.log('------------------------')
+        console.log('> status [hex notation]:')
+        console.log('> feedkey =', this._feed.key.toString('hex').substring(0, 10) + "...")
+        console.log('> disckey =', this._feed.discoveryKey.toString('hex').substring(0, 10) + "...")
+        console.log('> public  =', this._identity._keypair.pk.toString('hex').substring(0, 10) + "...")
+        console.log('> secret  =', this._identity._keypair.sk.toString('hex').substring(0, 10) + "...")
+        console.log('------------------------')
     }
 }
 

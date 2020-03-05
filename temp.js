@@ -13,8 +13,9 @@ feedA.ready(() => {
         identityA.addPeer(identityB.me())
         identityB.addPeer(identityA.me())
 
-        let pkA = identityA.getFeedPublicKeyFromPeerID(identityA.me())
-        let dkA = identityA.getDicoveryKeyFromPublicKey(pkA)
+        let feedKey = identityA.getFeedPublicKeyFromPeerID(identityA.me())
+        let pkA = crypto.getPublicKeyFromPeerID(identityA.me())
+        let dkA = identityA.getDicoveryKeyFromPublicKey(feedKey)
 
         console.log(identityA.me().toString('hex'))
         console.log(identityA._keypair.pk.toString('hex'))
@@ -37,7 +38,7 @@ feedA.ready(() => {
             }
         }
 
-        let decrypted = identityB.decryptMessage(letter, dkA)
+        let decrypted = identityB.decryptMessage(letter, pkA)
 
         console.log(decrypted)
     })

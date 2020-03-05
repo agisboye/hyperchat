@@ -98,10 +98,8 @@ function encryptMessage(plainMessage, ownPublicKey, ownPrivateKey, otherPeerID) 
     return Buffer.concat([nonce, ciphertext])
 }
 
-function decryptMessage(cipherAndNonce, ownPublicKey, ownPrivateKey, otherPeerID) {
-    let otherPublicKey = getPublicKeyFromPeerID(otherPeerID)
+function decryptMessage(cipherAndNonce, ownPublicKey, ownPrivateKey, otherPublicKey) {
     let { rx, _ } = _generateServerKeys(ownPublicKey, ownPrivateKey, otherPublicKey)
-
     let { nonce, cipher } = _splitNonceAndCipher(cipherAndNonce)
 
     let plainTextBuffer = Buffer.alloc(cipher.length - sodium.crypto_secretbox_MACBYTES)
@@ -172,6 +170,9 @@ function makeChatIDClient(clientPublicKey, clientSecretKey, serverPublicKey) {
 }
 
 function chatIDsMatch(incomingChatID, serverPublicKey, serverSecretKey, clientPublicKey) {
+    let spk = serverPublicKey.toString('hex')
+    let ssk = serverSecretKey.toString('hex')
+    let cpk = clientPublicKey.toString('hex')
     let chatIDServer = _makeChatIDServer(serverPublicKey, serverSecretKey, clientPublicKey)
     return incomingChatID.equals(chatIDServer)
 }

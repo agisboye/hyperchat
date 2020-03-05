@@ -17,6 +17,7 @@ class Identity {
         return this._peerID
     }
 
+    /// Adds peerID to known peers and returns feed public key for peerID
     addPeer(peerID, isInitiator) {
         // TODO: Should be no-op if we already know peer but right now we can change who is initiator.
         this._peers[peerID.toString('hex')] = isInitiator
@@ -29,7 +30,7 @@ class Identity {
     }
 
     knows(topic) {
-        let peerIDContainingTopic = this._getFirstPeerIDMatchingTopic(topic)
+        let peerIDContainingTopic = this.getFirstPeerIDMatchingTopic(topic)
         return this._getPeer(peerIDContainingTopic) !== undefined
     }
 
@@ -37,18 +38,19 @@ class Identity {
         return crypto.getFeedKeyFromPeerID(peerID)
     }
 
-    getPublicKeyFromDiscoveryKey(discoveryKey) {
-        return this.getFeedPublicKeyFromPeerID(this._getFirstPeerIDMatchingTopic(discoveryKey))
+    getFeedPublicKeyFromDiscoveryKey(discoveryKey) {
+        return this.getFeedPublicKeyFromPeerID(this.getFirstPeerIDMatchingTopic(discoveryKey))
     }
+
 
     generateChallenge(topic) {
         // We need to find the peerID containing topic. 
-        let peerIDContainingTopic = this._getFirstPeerIDMatchingTopic(topic)
+        let peerIDContainingTopic = this.getFirstPeerIDMatchingTopic(topic)
         return crypto.generateChallenge(this._keypair.sk, this._keypair.pk, this._peerID, peerIDContainingTopic)
     }
 
     // TODO: This is a really shitty solution....... Find a better one
-    _getFirstPeerIDMatchingTopic(topic) {
+    getFirstPeerIDMatchingTopic(topic) {
         return Object.keys(this._peers).map(k => Buffer.from(k, 'hex')).find(peerID => {
             let publicKey = this.getFeedPublicKeyFromPeerID(peerID)
             let discoveryKey = crypto.getDicoveryKeyFromPublicKey(publicKey)
@@ -82,10 +84,9 @@ class Identity {
         return this._peers[id.toString('hex')]
     }
 
-    decryptMessage(letter, topic) {
-        let otherPeerID = this._getFirstPeerIDMatchingTopic(topic)
+    decryptMessage(letter, otherPeerID) {
         let otherPublicKey = crypto.getPublicKeyFromPeerID(otherPeerID)
-
+        let temp = otherPublicKey.toString('hex')
         let incomingChatID = Buffer.from(letter.data.chatID, 'hex')
 
         if (crypto.chatIDsMatch(incomingChatID, this._keypair.pk, this._keypair.sk, otherPublicKey)) {
@@ -93,18 +94,11 @@ class Identity {
             let ciphertext = letter.data.ciphertext
 
             let cipherBuffer = Buffer.from(ciphertext, 'hex')
-            return crypto.decryptMessage(cipherBuffer, this._keypair.pk, this._keypair.sk, Buffer.from(otherPeerID, 'hex')).toString('utf-8')
+            return crypto.decryptMessage(cipherBuffer, this._keypair.pk, this._keypair.sk, otherPublicKey).toString('utf-8')
         } else {
             // chat ID doesnt match; message is not for us
             return null
         }
-
-
-    }
-
-    makeChatIDServer(otherPeerID) {
-        let otherPublicKey = crypto._getPublicKeyFromPeerID(otherPeerID)
-        return crypto.makeChatIDServer(this._keypair.pk, this._keypair.sk, otherPublicKey)
     }
 
     makeChatIDClient(otherPeerID) {
