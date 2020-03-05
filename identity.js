@@ -21,8 +21,7 @@ class Identity {
         // TODO: Should be no-op if we already know peer but right now we can change who is initiator.
         this._peers[peerID.toString('hex')] = isInitiator
         this._save()
-        console.log('known peers:', this._peers)
-        return this.getPublicKeyFromPeerID(peerID)
+        return this.getFeedPublicKeyFromPeerID(peerID)
     }
 
     getAllKnownPeerIDs() {
@@ -34,12 +33,12 @@ class Identity {
         return this._getPeer(peerIDContainingTopic) !== undefined
     }
 
-    getPublicKeyFromPeerID(peerID) {
+    getFeedPublicKeyFromPeerID(peerID) {
         return crypto.getFeedKeyFromPeerID(peerID)
     }
 
     getPublicKeyFromDiscoveryKey(discoveryKey) {
-        return this.getPublicKeyFromPeerID(this._getFirstPeerIDMatchingTopic(discoveryKey))
+        return this.getFeedPublicKeyFromPeerID(this._getFirstPeerIDMatchingTopic(discoveryKey))
     }
 
     generateChallenge(topic) {
@@ -51,13 +50,17 @@ class Identity {
     // TODO: This is a really shitty solution....... Find a better one
     _getFirstPeerIDMatchingTopic(topic) {
         return Object.keys(this._peers).map(k => Buffer.from(k, 'hex')).find(peerID => {
-            let publicKey = this.getPublicKeyFromPeerID(peerID)
+            let publicKey = this.getFeedPublicKeyFromPeerID(peerID)
             let discoveryKey = crypto.dicoveryKeyFromPublicKey(publicKey)
+            let peerIDs = peerID.toString('hex')
+            let pks = publicKey.toString('hex')
+            let dks = discoveryKey.toString('hex')
             return discoveryKey.equals(topic)
         })
     }
 
     answerChallenge(ciphertext) {
+        //TODO: Change this to just return res
         let res = crypto.answerChallenge(Buffer.from(ciphertext, 'hex'), this._keypair.pk, this._keypair.sk)
         if (res) {
             return res
@@ -79,23 +82,36 @@ class Identity {
         return this._peers[id.toString('hex')]
     }
 
-    decryptMessage(content, topic) {
+    decryptMessage(letter, topic) {
+        let topicString = topic.toString('hex')
         let otherPeerID = this._getFirstPeerIDMatchingTopic(topic)
-        let otherPublicKey = this.getPublicKeyFromPeerID(otherPeerID)
 
-        let hashChallenger = crypto.makeChatIDClient()
-        // check on chatID if the message is for you before trying to decrypt. 
-        // TODO: Not fully implemented
-        let chatID = crypto.makeChatIDClient()
+        let myChatID = this.makeChatIDServer(otherPeerID)
+        let theirChatID = Buffer.from(letter.data.chatID, 'hex')
 
-        let ciphertext = content.ciphertext
+        let res = myChatID.equals(theirChatID)
+        if (!res) {
+            return null
+        } else {
+            // try to decrypt the message
+        }
+
+        let ciphertext = cipher.ciphertext
 
         let cipherBuffer = Buffer.from(ciphertext, 'hex')
         return crypto.decryptMessage(cipherBuffer, this._keypair.pk, this._keypair.sk, Buffer.from(otherPeerID, 'hex')).toString('utf-8')
     }
 
+    makeChatIDServer(otherPeerID) {
+        let otherPublicKey = crypto._getPublicKeyFromPeerID(otherPeerID)
+        return crypto.makeChatIDServer(this._keypair.pk, this._keypair.sk, otherPublicKey)
+    }
+
     makeChatIDClient(otherPeerID) {
-        let otherPublicKey = Buffer.from(this.getPublicKeyFromPeerID(otherPeerID), 'hex')
+        let otherPublicKey = crypto._getPublicKeyFromPeerID(otherPeerID)
+        let pk = this._keypair.pk.toString('hex')
+        let sk = this._keypair.sk.toString('hex')
+        let otherpk = otherPublicKey.toString('hex')
         return crypto.makeChatIDClient(this._keypair.pk, this._keypair.sk, otherPublicKey)
     }
 

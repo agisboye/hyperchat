@@ -33,7 +33,7 @@ function _generateClientKeys(clientPublicKey, clientSecretKey, serverPublicKey) 
     return { rx, tx }
 }
 
-function _generateServerKey(serverPublicKey, serverSecretKey, clientPublicKey) {
+function _generateServerKeys(serverPublicKey, serverSecretKey, clientPublicKey) {
     let rx = Buffer.alloc(sodium.crypto_kx_SESSIONKEYBYTES)
     let tx = Buffer.alloc(sodium.crypto_kx_SESSIONKEYBYTES)
     sodium.crypto_kx_server_session_keys(rx, tx, serverPublicKey, serverSecretKey, clientPublicKey)
@@ -93,7 +93,7 @@ function encryptMessage(plainMessage, ownPublicKey, ownPrivateKey, otherPeerID) 
 
 function decryptMessage(cipherAndNonce, ownPublicKey, ownPrivateKey, otherPeerID) {
     let otherPublicKey = _getPublicKeyFromPeerID(otherPeerID)
-    let { rx, _ } = _generateServerKey(ownPublicKey, ownPrivateKey, otherPublicKey)
+    let { rx, _ } = _generateServerKeys(ownPublicKey, ownPrivateKey, otherPublicKey)
 
     let { nonce, cipher } = _splitNonceAndCipher(cipherAndNonce)
 
@@ -141,7 +141,7 @@ function answerChallenge(ciphertext, ownPublicKey, ownSecretKey) {
         let otherPeerID = Buffer.from(data.peerID, 'hex')
         let otherPublicKey = _getPublicKeyFromPeerID(otherPeerID)
 
-        let { rx, _ } = _generateServerKey(ownPublicKey, ownSecretKey, otherPublicKey)
+        let { rx, _ } = _generateServerKeys(ownPublicKey, ownSecretKey, otherPublicKey)
 
         let myProof = _createChallengeProof(nonce, rx)
 
@@ -158,9 +158,22 @@ function answerChallenge(ciphertext, ownPublicKey, ownSecretKey) {
 }
 
 function makeChatIDClient(clientPublicKey, clientSecretKey, serverPublicKey) {
+    let cpk = clientPublicKey.toString('hex')
+    let csk = clientSecretKey.toString('hex')
+    let spk = serverPublicKey.toString('hex')
     let output = Buffer.alloc(sodium.crypto_generichash_BYTES_MAX)
-    let { _, tx } = _generateClientKeys(clientPublicKey, clientSecretKey, serverPublicKey)
+    let { rx, tx } = _generateClientKeys(clientPublicKey, clientSecretKey, serverPublicKey)
     sodium.crypto_generichash(output, tx)
+    return output
+}
+
+function makeChatIDServer(serverPublicKey, serverSecretKey, clientPublicKey) {
+    let spk = serverPublicKey.toString('hex')
+    let ssk = serverSecretKey.toString('hex')
+    let cpk = clientPublicKey.toString('hex')
+    let output = Buffer.alloc(sodium.crypto_generichash_BYTES_MAX)
+    let { rx, tx } = _generateServerKeys(serverPublicKey, serverSecretKey, clientPublicKey)
+    sodium.crypto_generichash(output, rx)
     return output
 }
 
@@ -173,7 +186,11 @@ module.exports = {
     answerChallenge,
     generateKeyPair,
     dicoveryKeyFromPublicKey,
-    makeChatIDClient
+    makeChatIDClient,
+    makeChatIDServer,
+    _generateClientKeys,
+    _generateServerKeys,
+    _getPublicKeyFromPeerID
 }
 
 // server

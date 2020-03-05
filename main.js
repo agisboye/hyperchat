@@ -13,10 +13,6 @@ chat.on('ready', () => {
         let otherPeerId = Buffer.from(process.argv[3], 'hex')
         chat.invite(otherPeerId)
         chat.sendMessageTo(otherPeerId, "hello from the other side")
-        chat._getFeed(chat._identity.getPublicKeyFromPeerID(otherPeerId)).createReadStream({ live: true }).on('data', data => {
-            console.log(`[${name}] New data on peer stream`)
-            console.log(data)
-        })
     }
 })
 

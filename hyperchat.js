@@ -60,12 +60,12 @@ class Hyperchat extends EventEmitter {
     sendMessageTo(peerID, content) {
         // encrypt message and append to your own feed
         let ciphertext = this._identity.encryptMessage(content, peerID)
-        let chatID = this._identity.makeChatIDClient(peerID).toString('hex')
+        let chatID = this._identity.makeChatIDClient(peerID)
         let message = {
             type: 'message',
             data: {
-                chatID: chatID,
-                ciphertext: ciphertext
+                chatID: chatID.toString('hex'),
+                ciphertext: ciphertext.toString('hex')
             }
         }
 
@@ -85,6 +85,14 @@ class Hyperchat extends EventEmitter {
 
     getAllMessagesFrom(name, index) {
         return []
+    }
+
+    getReadstreamFor(peerID) {
+        let publicKey = this._identity.getPublicKeyFromPeerID(peerID)
+        let feed = this._getFeed(publicKey)
+
+        let materializedView = ""
+        return materializedView
     }
 
     /** Private API **/
@@ -153,6 +161,13 @@ class Hyperchat extends EventEmitter {
     _replicate(key, stream) {
         let feed = this._getFeed(key)
         feed.replicate(stream, { live: true })
+
+        //TOOD: Should be put in seperate funciton
+        feed.createReadStream({ live: true }).on('data', data => {
+            // try to decrypt data
+            console.log(`[${this._name}] New data on peer stream`)
+            console.log(data)
+        })
     }
 
     _getFeed(key) {
