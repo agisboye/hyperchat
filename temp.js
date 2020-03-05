@@ -14,7 +14,7 @@ feedA.ready(() => {
         identityB.addPeer(identityA.me())
 
         let pkA = identityA.getFeedPublicKeyFromPeerID(identityA.me())
-        let dkA = identityA.dicoveryKeyFromPublicKey(pkA)
+        let dkA = identityA.getDicoveryKeyFromPublicKey(pkA)
 
         console.log(identityA.me().toString('hex'))
         console.log(identityA._keypair.pk.toString('hex'))

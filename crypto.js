@@ -50,13 +50,20 @@ function _splitPeerID(peerID) {
     return { feedKey, publicKey }
 }
 
-function _getPublicKeyFromPeerID(peerID) {
-    return _splitPeerID(peerID).publicKey
+function _makeChatIDServer(serverPublicKey, serverSecretKey, clientPublicKey) {
+    let output = Buffer.alloc(sodium.crypto_generichash_BYTES_MAX)
+    let { rx, _ } = _generateServerKeys(serverPublicKey, serverSecretKey, clientPublicKey)
+    sodium.crypto_generichash(output, rx)
+    return output
 }
 
 // ------- public functions ------- //
 
-function dicoveryKeyFromPublicKey(publicKey) {
+function getPublicKeyFromPeerID(peerID) {
+    return _splitPeerID(peerID).publicKey
+}
+
+function getDicoveryKeyFromPublicKey(publicKey) {
     var digest = Buffer.alloc(32)
     sodium.crypto_generichash(digest, Buffer.from('hypercore'), publicKey)
     return digest
@@ -79,7 +86,7 @@ function createPeerID(ownFeedKey, ownPublicKey) {
 }
 
 function encryptMessage(plainMessage, ownPublicKey, ownPrivateKey, otherPeerID) {
-    let otherPublicKey = _getPublicKeyFromPeerID(otherPeerID)
+    let otherPublicKey = getPublicKeyFromPeerID(otherPeerID)
     let { _, tx } = _generateClientKeys(ownPublicKey, ownPrivateKey, otherPublicKey)
     let ciphertext = Buffer.alloc(plainMessage.length + sodium.crypto_secretbox_MACBYTES)
     let message = Buffer.from(plainMessage, 'utf-8')
@@ -92,7 +99,7 @@ function encryptMessage(plainMessage, ownPublicKey, ownPrivateKey, otherPeerID) 
 }
 
 function decryptMessage(cipherAndNonce, ownPublicKey, ownPrivateKey, otherPeerID) {
-    let otherPublicKey = _getPublicKeyFromPeerID(otherPeerID)
+    let otherPublicKey = getPublicKeyFromPeerID(otherPeerID)
     let { rx, _ } = _generateServerKeys(ownPublicKey, ownPrivateKey, otherPublicKey)
 
     let { nonce, cipher } = _splitNonceAndCipher(cipherAndNonce)
@@ -109,7 +116,7 @@ function decryptMessage(cipherAndNonce, ownPublicKey, ownPrivateKey, otherPeerID
 
 /// A challenge is ownPeerID + nonce encrypted with otherPeerID's public key.
 function generateChallenge(ownSecretKey, ownPublicKey, ownPeerID, otherPeerID) {
-    let otherPublicKey = _getPublicKeyFromPeerID(otherPeerID)
+    let otherPublicKey = getPublicKeyFromPeerID(otherPeerID)
     let nonce = _generateNonce()
 
     let { _, tx } = _generateClientKeys(ownPublicKey, ownSecretKey, otherPublicKey)
@@ -139,7 +146,7 @@ function answerChallenge(ciphertext, ownPublicKey, ownSecretKey) {
         let nonce = Buffer.from(data.nonce, 'hex')
         let proof = Buffer.from(data.proof, 'hex')
         let otherPeerID = Buffer.from(data.peerID, 'hex')
-        let otherPublicKey = _getPublicKeyFromPeerID(otherPeerID)
+        let otherPublicKey = getPublicKeyFromPeerID(otherPeerID)
 
         let { rx, _ } = _generateServerKeys(ownPublicKey, ownSecretKey, otherPublicKey)
 
@@ -158,39 +165,29 @@ function answerChallenge(ciphertext, ownPublicKey, ownSecretKey) {
 }
 
 function makeChatIDClient(clientPublicKey, clientSecretKey, serverPublicKey) {
-    let cpk = clientPublicKey.toString('hex')
-    let csk = clientSecretKey.toString('hex')
-    let spk = serverPublicKey.toString('hex')
     let output = Buffer.alloc(sodium.crypto_generichash_BYTES_MAX)
-    let { rx, tx } = _generateClientKeys(clientPublicKey, clientSecretKey, serverPublicKey)
+    let { _, tx } = _generateClientKeys(clientPublicKey, clientSecretKey, serverPublicKey)
     sodium.crypto_generichash(output, tx)
     return output
 }
 
-function makeChatIDServer(serverPublicKey, serverSecretKey, clientPublicKey) {
-    let spk = serverPublicKey.toString('hex')
-    let ssk = serverSecretKey.toString('hex')
-    let cpk = clientPublicKey.toString('hex')
-    let output = Buffer.alloc(sodium.crypto_generichash_BYTES_MAX)
-    let { rx, tx } = _generateServerKeys(serverPublicKey, serverSecretKey, clientPublicKey)
-    sodium.crypto_generichash(output, rx)
-    return output
+function chatIDsMatch(incomingChatID, serverPublicKey, serverSecretKey, clientPublicKey) {
+    let chatIDServer = _makeChatIDServer(serverPublicKey, serverSecretKey, clientPublicKey)
+    return incomingChatID.equals(chatIDServer)
 }
 
 module.exports = {
     getFeedKeyFromPeerID,
+    getPublicKeyFromPeerID,
     createPeerID,
     encryptMessage,
     decryptMessage,
     generateChallenge,
     answerChallenge,
     generateKeyPair,
-    dicoveryKeyFromPublicKey,
+    getDicoveryKeyFromPublicKey,
     makeChatIDClient,
-    makeChatIDServer,
-    _generateClientKeys,
-    _generateServerKeys,
-    _getPublicKeyFromPeerID
+    chatIDsMatch
 }
 
 // server

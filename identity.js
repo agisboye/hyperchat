@@ -51,7 +51,7 @@ class Identity {
     _getFirstPeerIDMatchingTopic(topic) {
         return Object.keys(this._peers).map(k => Buffer.from(k, 'hex')).find(peerID => {
             let publicKey = this.getFeedPublicKeyFromPeerID(peerID)
-            let discoveryKey = crypto.dicoveryKeyFromPublicKey(publicKey)
+            let discoveryKey = crypto.getDicoveryKeyFromPublicKey(publicKey)
             let peerIDs = peerID.toString('hex')
             let pks = publicKey.toString('hex')
             let dks = discoveryKey.toString('hex')
@@ -69,8 +69,8 @@ class Identity {
         }
     }
 
-    dicoveryKeyFromPublicKey(publicKey) {
-        return crypto.dicoveryKeyFromPublicKey(publicKey)
+    getDicoveryKeyFromPublicKey(publicKey) {
+        return crypto.getDicoveryKeyFromPublicKey(publicKey)
     }
 
     encryptMessage(plaintext, otherPeerID) {
@@ -83,23 +83,23 @@ class Identity {
     }
 
     decryptMessage(letter, topic) {
-        let topicString = topic.toString('hex')
         let otherPeerID = this._getFirstPeerIDMatchingTopic(topic)
+        let otherPublicKey = crypto.getPublicKeyFromPeerID(otherPeerID)
 
-        let myChatID = this.makeChatIDServer(otherPeerID)
-        let theirChatID = Buffer.from(letter.data.chatID, 'hex')
+        let incomingChatID = Buffer.from(letter.data.chatID, 'hex')
 
-        let res = myChatID.equals(theirChatID)
-        if (!res) {
-            return null
+        if (crypto.chatIDsMatch(incomingChatID, this._keypair.pk, this._keypair.sk, otherPublicKey)) {
+            // try to decrypt
+            let ciphertext = letter.data.ciphertext
+
+            let cipherBuffer = Buffer.from(ciphertext, 'hex')
+            return crypto.decryptMessage(cipherBuffer, this._keypair.pk, this._keypair.sk, Buffer.from(otherPeerID, 'hex')).toString('utf-8')
         } else {
-            // try to decrypt the message
+            // chat ID doesnt match; message is not for us
+            return null
         }
 
-        let ciphertext = cipher.ciphertext
 
-        let cipherBuffer = Buffer.from(ciphertext, 'hex')
-        return crypto.decryptMessage(cipherBuffer, this._keypair.pk, this._keypair.sk, Buffer.from(otherPeerID, 'hex')).toString('utf-8')
     }
 
     makeChatIDServer(otherPeerID) {
@@ -108,10 +108,7 @@ class Identity {
     }
 
     makeChatIDClient(otherPeerID) {
-        let otherPublicKey = crypto._getPublicKeyFromPeerID(otherPeerID)
-        let pk = this._keypair.pk.toString('hex')
-        let sk = this._keypair.sk.toString('hex')
-        let otherpk = otherPublicKey.toString('hex')
+        let otherPublicKey = crypto.getPublicKeyFromPeerID(otherPeerID)
         return crypto.makeChatIDClient(this._keypair.pk, this._keypair.sk, otherPublicKey)
     }
 
