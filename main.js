@@ -15,16 +15,16 @@ chat.on('ready', () => {
     }
 })
 
-chat.on('invite', (peerId) => {
+chat.on('invite', (peerID) => {
     console.log("Accepting invite")
-    chat.acceptInvite(peerId)
+    chat.acceptInvite(peerID)
+    recipient = peerID
 })
 
 chat.on('decryptedMessage', (peerID, message) => {
     console.log('--------')
     console.log('> from:', peerID.toString('hex').substring(0, 10) + "...")
     console.log('> message:', message)
-    recipient = peerID
 })
 
 process.stdin.on('data', data => {
