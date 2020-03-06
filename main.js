@@ -3,7 +3,6 @@ const Hyperchat = require('./hyperchat')
 let knowsOtherPeerId = process.argv[3] !== undefined
 let name = process.argv[2]
 let chat = new Hyperchat(name)
-let recipient;
 
 chat.start()
 
@@ -11,14 +10,12 @@ chat.on('ready', () => {
     if (knowsOtherPeerId) {
         let otherPeerId = Buffer.from(process.argv[3], 'hex')
         chat.invite(otherPeerId)
-        recipient = otherPeerId
     }
 })
 
 chat.on('invite', (peerID) => {
     console.log("Accepting invite")
     chat.acceptInvite(peerID)
-    recipient = peerID
 })
 
 chat.on('decryptedMessage', (peerID, message) => {
@@ -29,7 +26,9 @@ chat.on('decryptedMessage', (peerID, message) => {
 
 process.stdin.on('data', data => {
     let message = data.toString('utf-8')
-    chat.sendMessageTo(recipient, message)
+    let firstPeer = chat._identity.peers()[0]
+    console.log('> to:', firstPeer.toString('hex').substring(0, 10) + "...")
+    chat.sendMessageTo(firstPeer, message)
 })
 
 // chat._feed.createReadStream({ live: true }).on('data', data => {

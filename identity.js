@@ -17,6 +17,10 @@ class Identity {
         return this._peerID
     }
 
+    peers() {
+        return Object.keys(this._peers).map(k => Buffer.from(k, 'hex'))
+    }
+
     /// Adds peerID to known peers and returns feed public key for peerID
     addPeer(peerID, isInitiator) {
         // TODO: Should be no-op if we already know peer but right now we can change who is initiator.
@@ -38,10 +42,13 @@ class Identity {
         return crypto.getFeedKeyFromPeerID(peerID)
     }
 
+    getDiscoveryKeyFromPeerID(peerID) {
+        return crypto.getDicoveryKeyFromPublicKey(this.getFeedPublicKeyFromPeerID(peerID))
+    }
+
     getFeedPublicKeyFromDiscoveryKey(discoveryKey) {
         return this.getFeedPublicKeyFromPeerID(this.getFirstPeerIDMatchingTopic(discoveryKey))
     }
-
 
     generateChallenge(topic) {
         // We need to find the peerID containing topic. 
@@ -51,7 +58,7 @@ class Identity {
 
     // TODO: This is a really shitty solution....... Find a better one
     getFirstPeerIDMatchingTopic(topic) {
-        return Object.keys(this._peers).map(k => Buffer.from(k, 'hex')).find(peerID => {
+        return this.peers().find(peerID => {
             let publicKey = this.getFeedPublicKeyFromPeerID(peerID)
             let discoveryKey = crypto.getDicoveryKeyFromPublicKey(publicKey)
             return discoveryKey.equals(topic)
