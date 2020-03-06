@@ -130,21 +130,19 @@ class Hyperchat extends EventEmitter {
             }
         })
 
-        for (let topic of details.topics) {
-            // Send a challenge to the connecting peer
-            // if we are trying to invite on this topic.
-            if (this._pendingInvites.has(topic)) {
-                let challenge = this._identity.generateChallenge(topic)
-
+        // Send a challenge to the connecting peer
+        // if we are trying to invite on this topic.
+        details.topics
+            .filter(t => this._pendingInvites.has(t))
+            .map(t => this._identity.generateChallenge(t))
+            .forEach(challenge => {
                 ext.send({
                     type: HYPERCHAT_PROTOCOL_INVITE,
                     data: {
                         challenge: challenge
                     }
                 })
-            }
-
-        }
+            })
 
         this._replicate(this._identity.me(), stream)
         pump(stream, socket, stream)
