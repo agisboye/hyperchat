@@ -38,8 +38,15 @@ feedA.ready(() => {
             }
         }
 
-        let decrypted = identityB.decryptMessage(letter, pkA)
+        // B decrypts message from A
+        let decryptedB = identityB.decryptMessage(letter, identityA.me())
+        console.log("B")
+        console.log(decryptedB)
 
-        console.log(decrypted)
+        // A decrypts its own message
+        let decryptedA = identityA.decryptMessage(letter, identityB.me())
+        console.log('A')
+        console.log(decryptedA)
+
     })
 })

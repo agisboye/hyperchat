@@ -25,6 +25,16 @@ function _splitNonceAndCipher(cipherAndNonce) {
     return { nonce, cipher }
 }
 
+function _decryptAMessage(nonceAndCipher, key) {
+    let { nonce, cipher } = _splitNonceAndCipher(nonceAndCipher)
+    let plainTextBuffer = Buffer.alloc(cipher.length - sodium.crypto_secretbox_MACBYTES)
+    if (sodium.crypto_secretbox_open_easy(plainTextBuffer, cipher, nonce, key)) {
+        return plainTextBuffer
+    } else {
+        // Decryption failed. 
+        return null
+    }
+}
 /// returns (rx, tx)
 function _generateClientKeys(clientPublicKey, clientSecretKey, serverPublicKey) {
     let rx = Buffer.alloc(sodium.crypto_kx_SESSIONKEYBYTES)
@@ -98,18 +108,14 @@ function encryptMessage(plainMessage, ownPublicKey, ownPrivateKey, otherPeerID) 
     return Buffer.concat([nonce, ciphertext])
 }
 
-function decryptMessage(cipherAndNonce, ownPublicKey, ownPrivateKey, otherPublicKey) {
+function decryptMessage(nonceAndCipher, ownPublicKey, ownPrivateKey, otherPublicKey) {
     let { rx, _ } = _generateServerKeys(ownPublicKey, ownPrivateKey, otherPublicKey)
-    let { nonce, cipher } = _splitNonceAndCipher(cipherAndNonce)
+    return _decryptAMessage(nonceAndCipher, rx)
+}
 
-    let plainTextBuffer = Buffer.alloc(cipher.length - sodium.crypto_secretbox_MACBYTES)
-
-    if (sodium.crypto_secretbox_open_easy(plainTextBuffer, cipher, nonce, rx)) {
-        return plainTextBuffer
-    } else {
-        // Decryption failed. 
-        return null
-    }
+function decryptOwnMessage(nonceAndCipher, ownPublicKey, ownPrivateKey, otherPublicKey) {
+    let { _, tx } = _generateClientKeys(ownPublicKey, ownPrivateKey, otherPublicKey)
+    return _decryptAMessage(nonceAndCipher, tx)
 }
 
 /// A challenge is ownPeerID + nonce encrypted with otherPeerID's public key.
@@ -159,7 +165,6 @@ function answerChallenge(ciphertext, ownPublicKey, ownSecretKey) {
     }
 
     return null
-
 }
 
 function makeChatIDClient(clientPublicKey, clientSecretKey, serverPublicKey) {
@@ -169,12 +174,17 @@ function makeChatIDClient(clientPublicKey, clientSecretKey, serverPublicKey) {
     return output
 }
 
-function chatIDsMatch(incomingChatID, serverPublicKey, serverSecretKey, clientPublicKey) {
-    let spk = serverPublicKey.toString('hex')
-    let ssk = serverSecretKey.toString('hex')
-    let cpk = clientPublicKey.toString('hex')
-    let chatIDServer = _makeChatIDServer(serverPublicKey, serverSecretKey, clientPublicKey)
-    return incomingChatID.equals(chatIDServer)
+// Incoming chatID matches if it is made by someone we know or if it is made by us
+function chatIDsMatch(incomingChatID, ownPublicKey, ownPrivateKey, otherPublicKey) {
+    let chatIDServer = _makeChatIDServer(ownPublicKey, ownPrivateKey, otherPublicKey)
+
+    if (incomingChatID.equals(chatIDServer)) {
+        return "mathedOther"
+    } else if (incomingChatID.equals(makeChatIDClient(ownPublicKey, ownPrivateKey, otherPublicKey))) {
+        return "matchedSelf"
+    } else {
+        return "noMatch"
+    }
 }
 
 module.exports = {
@@ -183,6 +193,7 @@ module.exports = {
     createPeerID,
     encryptMessage,
     decryptMessage,
+    decryptOwnMessage,
     generateChallenge,
     answerChallenge,
     generateKeyPair,

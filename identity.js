@@ -54,21 +54,12 @@ class Identity {
         return Object.keys(this._peers).map(k => Buffer.from(k, 'hex')).find(peerID => {
             let publicKey = this.getFeedPublicKeyFromPeerID(peerID)
             let discoveryKey = crypto.getDicoveryKeyFromPublicKey(publicKey)
-            let peerIDs = peerID.toString('hex')
-            let pks = publicKey.toString('hex')
-            let dks = discoveryKey.toString('hex')
             return discoveryKey.equals(topic)
         })
     }
 
     answerChallenge(ciphertext) {
-        //TODO: Change this to just return res
-        let res = crypto.answerChallenge(Buffer.from(ciphertext, 'hex'), this._keypair.pk, this._keypair.sk)
-        if (res) {
-            return res
-        } else {
-            return null
-        }
+        return crypto.answerChallenge(Buffer.from(ciphertext, 'hex'), this._keypair.pk, this._keypair.sk)
     }
 
     getDicoveryKeyFromPublicKey(publicKey) {
@@ -76,27 +67,21 @@ class Identity {
     }
 
     encryptMessage(plaintext, otherPeerID) {
-        let cipherTextBuffer = crypto.encryptMessage(plaintext, this._keypair.pk, this._keypair.sk, otherPeerID)
-        return cipherTextBuffer
+        return crypto.encryptMessage(plaintext, this._keypair.pk, this._keypair.sk, otherPeerID)
     }
 
-    _getPeer(id) {
-        return this._peers[id.toString('hex')]
-    }
-
-    decryptMessage(letter, otherPeerID) {
+    decryptMessage(message, otherPeerID) {
         let otherPublicKey = crypto.getPublicKeyFromPeerID(otherPeerID)
-        let incomingChatID = Buffer.from(letter.data.chatID, 'hex')
+        let messageChatID = Buffer.from(message.data.chatID, 'hex')
+        let cipherBuffer = Buffer.from(message.data.ciphertext, 'hex')
 
-        if (crypto.chatIDsMatch(incomingChatID, this._keypair.pk, this._keypair.sk, otherPublicKey)) {
-            // try to decrypt
-            let ciphertext = letter.data.ciphertext
-
-            let cipherBuffer = Buffer.from(ciphertext, 'hex')
-            return crypto.decryptMessage(cipherBuffer, this._keypair.pk, this._keypair.sk, otherPublicKey).toString('utf-8')
-        } else {
-            // chat ID doesnt match; message is not for us
-            return null
+        switch (crypto.chatIDsMatch(messageChatID, this._keypair.pk, this._keypair.sk, otherPublicKey)) {
+            case "matchedSelf":
+                return crypto.decryptOwnMessage(cipherBuffer, this._keypair.pk, this._keypair.sk, otherPublicKey).toString('utf-8')
+            case "mathedOther":
+                return crypto.decryptMessage(cipherBuffer, this._keypair.pk, this._keypair.sk, otherPublicKey).toString('utf-8')
+            default:
+                return null
         }
     }
 
@@ -110,6 +95,10 @@ class Identity {
             pk: Buffer.from(keypair.pk, 'hex'),
             sk: Buffer.from(keypair.sk, 'hex')
         }
+    }
+
+    _getPeer(id) {
+        return this._peers[id.toString('hex')]
     }
 
     _load() {
