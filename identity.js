@@ -77,6 +77,14 @@ class Identity {
         return crypto.encryptMessage(plaintext, this._keypair.pk, this._keypair.sk, otherPeerID)
     }
 
+    canDecryptMessage(message, otherPeerID) {
+        let otherPublicKey = crypto.getPublicKeyFromPeerID(otherPeerID)
+        let messageChatID = Buffer.from(message.data.chatID, 'hex')
+
+        return crypto.chatIDsMatch(messageChatID, this._keypair.pk, this._keypair.sk, otherPublicKey) !== null
+    }
+
+    //TODO: Can we refactor 'decryptMessage' and 'canDecryptMessage' so that 'crypto.chatIDsMatch' is not called twice?
     decryptMessage(message, otherPeerID) {
         let otherPublicKey = crypto.getPublicKeyFromPeerID(otherPeerID)
         let messageChatID = Buffer.from(message.data.chatID, 'hex')

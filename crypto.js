@@ -183,7 +183,7 @@ function chatIDsMatch(incomingChatID, ownPublicKey, ownPrivateKey, otherPublicKe
     } else if (incomingChatID.equals(makeChatIDClient(ownPublicKey, ownPrivateKey, otherPublicKey))) {
         return "matchedSelf"
     } else {
-        return "noMatch"
+        return null
     }
 }
 
