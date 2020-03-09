@@ -100,6 +100,13 @@ class Identity {
         }
     }
 
+    decryptMessageFromOther(ciphertext, otherPeerID) {
+        let otherPublicKey = crypto.getPublicKeyFromPeerID(otherPeerID)
+        let cipherBuffer = Buffer.from(ciphertext, 'hex')
+
+        return crypto.decryptMessage(cipherBuffer, this._keypair.pk, this._keypair.sk, otherPublicKey).toString('utf-8')
+    }
+
     makeChatIDClient(otherPeerID) {
         let otherPublicKey = crypto.getPublicKeyFromPeerID(otherPeerID)
         return crypto.makeChatIDClient(this._keypair.pk, this._keypair.sk, otherPublicKey)

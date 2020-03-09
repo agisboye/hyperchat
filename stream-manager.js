@@ -39,6 +39,24 @@ class StreamManager {
 
         return feedStream.pipe(filter).pipe(map)
     }
+
+    createDecryptedReadStream2(feed, otherPeerID) {
+        // find dict in head
+        feed.head({ wait: true, timeout: 0 }, (err, head) => {
+            if (err) throw err
+
+            let index = head.data.dict["B"]
+
+            feed.get(index, (err, message) => {
+                if (err) throw err
+                let decrypted = this._ownIdentity.decryptMessageFromOther(message.data.ciphertext, otherPeerID)
+                if (decrypted) {
+                    //TODO: Append/emit/somtething to add this decrypted message to the outside
+                    console.log(decrypted)
+                }
+            })
+        })
+    }
 }
 
 module.exports = StreamManager
