@@ -13,12 +13,11 @@ feedB.ready(async () => {
         let identityA = new Identity("A", feedA.key)
         let identityB = new Identity("B", feedB.key)
 
-        let stream = new ReverseFeedStream(identityB, feedA, identityA.me())
+        let ownstream = new ReverseFeedStream(identityA, feedA, identityB.me())
 
-        stream.on('data', data => {
+        ownstream.on('data', data => {
             console.log(data)
         })
-
     })
 })
 

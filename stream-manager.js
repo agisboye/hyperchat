@@ -74,7 +74,14 @@ class ReverseFeedStream extends Readable {
             this._currentIndex = nextMessage.data.dict["B"]
         }
 
-        let decrypted = this._ownIdentity.decryptMessageFromOther(currentMessage.data.ciphertext, this._otherPeerID)
+        let decrypted;
+
+        if (this._isOwnFeed) {
+            decrypted = this._ownIdentity.decryptOwnMessage(currentMessage.data.ciphertext, this._otherPeerID)
+        } else {
+            decrypted = this._ownIdentity.decryptMessageFromOther(currentMessage.data.ciphertext, this._otherPeerID)
+        }
+
         this.push(decrypted)
     }
 }
