@@ -7,23 +7,42 @@ const { Readable } = require('stream')
 // hypercore.prototype.get = promisify(hypercore.prototype.get)
 // hypercore.prototype.head = promisify(hypercore.prototype.head)
 
+
 class ReverseFeedStream extends Readable {
 
-    constructor(feed) {
+    constructor(ownIdentity, feed, index, otherPeerID) {
         super({ objectMode: true })
         this._feed = feed
-        this._index = feed.length - 1
+        this._currentIndex = index
+        this._ownIdentity = ownIdentity
+        this._otherPeerID = otherPeerID
+        //TODO: Not in use now. Can be used to determine if we we're traversing our own (decryptOwnMessage) or someone elses (decryptMessage)
+        this._isOwnFeed = feed.writable
     }
 
     _read() {
-        if (this._index < 0) this.push(null)
+        if (this._currentIndex < 0) this.push(null) // End of feed has been reached.
 
-        this._feed.get(this._index, (err, data) => {
-            if (err) {
-                this.push(null)
+        this._feed.get(this._currentIndex, (err, currentMessage) => {
+            if (err) throw err
+
+            this._currentIndex--
+
+            if (this._currentIndex < 0) {
+                let decrypted = this._ownIdentity.decryptMessageFromOther(currentMessage.data.ciphertext, this._otherPeerID)
+                this.push(decrypted)
             }
-            this._index--
-            this.push(data)
+
+            // find next index in next message 
+            this._feed.get(this._currentIndex, (err, nextMessage) => {
+                if (err) throw err
+
+                this._currentIndex = nextMessage.data.dict["B"]
+
+                let decrypted = this._ownIdentity.decryptMessageFromOther(currentMessage.data.ciphertext, this._otherPeerID)
+                this.push(decrypted)
+
+            })
         })
     }
 }
@@ -39,10 +58,21 @@ feedB.ready(async () => {
         let identityA = new Identity("A", feedA.key)
         let identityB = new Identity("B", feedB.key)
 
-        let stream = new ReverseFeedStream(feedA)
-        stream.on('data', data => {
-            console.log(data)
+        // find the first index to look into
+        feedA.head((err, message) => {
+            let headIndex = message.data.dict["B"]
+
+            if (headIndex !== null) {
+                let stream = new ReverseFeedStream(identityB, feedA, headIndex, identityA.me())
+
+                stream.on('data', data => {
+                    console.log(data)
+                })
+            }
         })
+
+
+
 
     })
 })
