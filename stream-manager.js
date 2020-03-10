@@ -1,5 +1,10 @@
 //TODO: Come up with a better name than 'stream-manager'. Too generic
-const { Transform } = require('stream')
+const { Transform, Readable } = require('stream')
+const promisify = require('util').promisify
+const hypercore = require('hypercore')
+hypercore.prototype.get = promisify(hypercore.prototype.get)
+hypercore.prototype.head = promisify(hypercore.prototype.head)
+
 
 class StreamFilter extends Transform {
 
@@ -28,35 +33,50 @@ class StreamMap extends Transform {
     }
 }
 
-class StreamManager {
+class ReverseFeedStream extends Readable {
 
-    constructor(ownIdentity) {
+    constructor(ownIdentity, feed, otherPeerID) {
+        super({ objectMode: true })
+        this._feed = feed
+        this._currentIndex = feed.length - 1
         this._ownIdentity = ownIdentity
-    }
-    createDecryptedReadStream(feedStream, otherPeerID) {
-        let filter = new StreamFilter(v => this._ownIdentity.canDecryptMessage(v, otherPeerID))
-        let map = new StreamMap(v => this._ownIdentity.decryptMessage(v, otherPeerID))
-
-        return feedStream.pipe(filter).pipe(map)
+        this._otherPeerID = otherPeerID
+        //TODO: Not in use now. Can be used to determine if we we're traversing our own (decryptOwnMessage) or someone elses (decryptMessage)
+        this._isOwnFeed = feed.writable
     }
 
-    createDecryptedReadStream2(feed, otherPeerID) {
-        // find dict in head
-        feed.head({ wait: true, timeout: 0 }, (err, head) => {
-            if (err) throw err
+    _read() {
+        this._asyncRead()
+    }
 
-            let index = head.data.dict["B"]
+    async _asyncRead() {
+        // We are at the head and need to find the first message intended for us
 
-            feed.get(index, (err, message) => {
-                if (err) throw err
-                let decrypted = this._ownIdentity.decryptMessageFromOther(message.data.ciphertext, otherPeerID)
-                if (decrypted) {
-                    //TODO: Append/emit/somtething to add this decrypted message to the outside
-                    console.log(decrypted)
-                }
-            })
-        })
+        if (this._currentIndex === this._feed.length - 1) {
+            let head = await this._feed.head()
+            this._currentIndex = head.data.dict["B"]
+        }
+
+
+        if (this._currentIndex < 0) {
+            // End of feed has been reached.
+            this.push(null)
+            return
+        }
+
+        let currentMessage = await this._feed.get(this._currentIndex)
+
+        // Find the next index to go to; Look up the index in the
+        // dict of the previous message. 
+        this._currentIndex--
+        if (this._currentIndex >= 0) {
+            let nextMessage = await this._feed.get(this._currentIndex)
+            this._currentIndex = nextMessage.data.dict["B"]
+        }
+
+        let decrypted = this._ownIdentity.decryptMessageFromOther(currentMessage.data.ciphertext, this._otherPeerID)
+        this.push(decrypted)
     }
 }
 
-module.exports = StreamManager
+module.exports = ReverseFeedStream

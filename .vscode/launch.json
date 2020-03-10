@@ -37,6 +37,15 @@
                 "<node_internals>/**"
             ],
             "program": "${workspaceFolder}/temp.js"
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Launch gist",
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "program": "${workspaceFolder}/gist.js"
         }
     ]
 }
