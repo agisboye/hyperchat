@@ -1,4 +1,5 @@
 const Identity = require('./identity')
+const Potasium = require('./potasium')
 const hypercore = require('hypercore')
 const { ReverseFeedStream, StreamMerger } = require('./stream-manager')
 const promisify = require('util').promisify
@@ -16,24 +17,17 @@ feedA.ready(async () => {
         feedC.ready(async () => {
             let identityA = new Identity("A", feedA.key)
             let identityB = new Identity("B", feedB.key)
-            let identityC = new Identity("C", feedC.key)
+            let potasiumA = new Potasium(identityA.keypair(), feedA)
+            let potasiumB = new Potasium(identityB.keypair(), feedB)
 
-            // create feedA stream on feedB stream seen from feedB
-            let streamA = new ReverseFeedStream(identityB, feedA, identityA.me(), false)
-            let streamB = new ReverseFeedStream(identityB, feedB, identityA.me(), true)
+            let cipher1 = potasiumA.createEncryptedMessage("B0", identityB.me(), -1)
 
-            let merged = new StreamMerger(streamA, streamB)
-
-            merged.on('data', data => {
-                console.log(data)
-            })
+            let decrypted = potasiumA.decryptOwnMessage(cipher1, identityB.me())
+            console.log(decrypted)
         })
     })
 })
 
-async function getHeadDict(feed) {
-    return (feed.length === 0) ? {} : (await feed.head()).data.dict
-}
 
 // Sending a message
 // 

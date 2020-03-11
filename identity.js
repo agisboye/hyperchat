@@ -12,9 +12,12 @@ class Identity {
         this._peerID = crypto.createPeerID(this._publicKey, this._keypair.pk)
     }
 
-    /// returns own peerID
     me() {
         return this._peerID
+    }
+
+    keypair() {
+        return this._keypair
     }
 
     peers() {
@@ -50,12 +53,6 @@ class Identity {
         return this.getFeedPublicKeyFromPeerID(this.getFirstPeerIDMatchingTopic(discoveryKey))
     }
 
-    generateChallenge(topic) {
-        // We need to find the peerID containing topic. 
-        let peerIDContainingTopic = this.getFirstPeerIDMatchingTopic(topic)
-        return crypto.generateChallenge(this._keypair.sk, this._keypair.pk, this._peerID, peerIDContainingTopic)
-    }
-
     // TODO: This is a really shitty solution....... Find a better one
     getFirstPeerIDMatchingTopic(topic) {
         return this.peers().find(peerID => {
@@ -65,81 +62,8 @@ class Identity {
         })
     }
 
-    answerChallenge(ciphertext) {
-        return crypto.answerChallenge(Buffer.from(ciphertext, 'hex'), this._keypair.pk, this._keypair.sk)
-    }
-
     getDicoveryKeyFromPublicKey(publicKey) {
         return crypto.getDicoveryKeyFromPublicKey(publicKey)
-    }
-
-    encryptMessage(plaintext, otherPeerID) {
-        return crypto.encryptMessage(plaintext, this._keypair.pk, this._keypair.sk, otherPeerID)
-    }
-
-    createEncryptedMessage(plaintext, otherPeerID, dict, ownSeq, otherSeq) {
-        let internalMessage = {
-            otherSeq: otherSeq || -1,
-            message: plaintext
-        }
-        let cipher = this.encryptMessage(JSON.stringify(internalMessage), otherPeerID).toString('hex')
-        let chatID = this.makeChatIDClient(otherPeerID).toString('hex')
-        dict[chatID] = ownSeq
-        return {
-            type: 'message',
-            data: {
-                dict: dict,
-                ciphertext: cipher.toString('hex')
-            }
-        }
-    }
-
-    //TODO: Check if still in use in hyperchat
-    canDecryptMessage(message, otherPeerID) {
-        let otherPublicKey = crypto.getPublicKeyFromPeerID(otherPeerID)
-        let messageChatID = Buffer.from(message.data.chatID, 'hex')
-
-        return crypto.chatIDsMatch(messageChatID, this._keypair.pk, this._keypair.sk, otherPublicKey) !== null
-    }
-
-    //TODO: Check if still in use in hyperchat
-    //TODO: Can we refactor 'decryptMessage' and 'canDecryptMessage' so that 'crypto.chatIDsMatch' is not called twice?
-    decryptMessage(message, otherPeerID) {
-        let otherPublicKey = crypto.getPublicKeyFromPeerID(otherPeerID)
-        let messageChatID = Buffer.from(message.data.chatID, 'hex')
-        let cipherBuffer = Buffer.from(message.data.ciphertext, 'hex')
-
-        switch (crypto.chatIDsMatch(messageChatID, this._keypair.pk, this._keypair.sk, otherPublicKey)) {
-            case "matchedSelf":
-                return crypto.decryptOwnMessage(cipherBuffer, this._keypair.pk, this._keypair.sk, otherPublicKey).toString('utf-8')
-            case "mathedOther":
-                return crypto.decryptMessage(cipherBuffer, this._keypair.pk, this._keypair.sk, otherPublicKey).toString('utf-8')
-            default:
-                return null
-        }
-    }
-
-    decryptMessageFromOther(ciphertext, otherPeerID) {
-        let otherPublicKey = crypto.getPublicKeyFromPeerID(otherPeerID)
-        let cipherBuffer = Buffer.from(ciphertext, 'hex')
-
-        return JSON.parse(crypto.decryptMessage(cipherBuffer, this._keypair.pk, this._keypair.sk, otherPublicKey).toString('utf-8'))
-    }
-
-    decryptOwnMessage(ciphertext, otherPeerID) {
-        let otherPublicKey = crypto.getPublicKeyFromPeerID(otherPeerID)
-        let cipherBuffer = Buffer.from(ciphertext, 'hex')
-        return JSON.parse(crypto.decryptOwnMessage(cipherBuffer, this._keypair.pk, this._keypair.sk, otherPublicKey).toString('utf-8'))
-    }
-
-    makeChatIDClient(otherPeerID) {
-        let otherPublicKey = crypto.getPublicKeyFromPeerID(otherPeerID)
-        return crypto.makeChatIDClient(this._keypair.pk, this._keypair.sk, otherPublicKey)
-    }
-
-    makeChatIDServer(otherPeerID) {
-        let otherPublicKey = crypto.getPublicKeyFromPeerID(otherPeerID)
-        return crypto.makeChatIDServer(this._keypair.pk, this._keypair.sk, otherPublicKey)
     }
 
     _hexKeypairToBuffers(keypair) {
@@ -181,7 +105,6 @@ class Identity {
 
         fs.writeFileSync(this._filepath, obj)
     }
-
 }
 
 module.exports = Identity
