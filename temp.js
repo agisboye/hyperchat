@@ -17,13 +17,12 @@ feedA.ready(async () => {
         feedC.ready(async () => {
             let identityA = new Identity("A", feedA.key)
             let identityB = new Identity("B", feedB.key)
-            let potasiumA = new Potasium(identityA.keypair(), feedA)
-            let potasiumB = new Potasium(identityB.keypair(), feedB)
+            let potasiumA = new Potasium(identityA.keypair(), identityA.me(), feedA)
+            let potasiumB = new Potasium(identityB.keypair(), identityB.me(), feedB)
 
-            let cipher1 = potasiumA.createEncryptedMessage("B0", identityB.me(), -1)
+            let challenge = potasiumA.generateChallenge(identityB.me()).toString('hex')
 
-            let decrypted = potasiumA.decryptOwnMessage(cipher1, identityB.me())
-            console.log(decrypted)
+            let res = potasiumB.answerChallenge(challenge)
         })
     })
 })

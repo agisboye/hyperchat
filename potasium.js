@@ -1,11 +1,12 @@
 const crypto = require('./crypto')
 
 class Potasium {
-    constructor(keypair, feed) {
+    constructor(keypair, ownPeerID, feed) {
         this._keypair = keypair
         this._feed = feed
         this._headDict = {}
         this._pendingHeadDict = {}
+        this._ownPeerID = ownPeerID
 
         //TODO: Is this necessary? Needs testing
         feed.on('append', () => {
@@ -18,7 +19,7 @@ class Potasium {
     */
 
     generateChallenge(otherPeerID) {
-        return crypto.generateChallenge(this._keypair.sk, this._keypair.pk, this._feed.key, otherPeerID)
+        return crypto.generateChallenge(this._keypair.sk, this._keypair.pk, this._ownPeerID, otherPeerID)
     }
 
     answerChallenge(ciphertext) {
@@ -63,7 +64,7 @@ class Potasium {
         let cipherBuffer = Buffer.from(ciphertext, 'hex')
 
         let res = decrypter(cipherBuffer, this._keypair.pk, this._keypair.sk, otherPublicKey)
-        
+
         return (res) ? JSON.parse(res.toString('utf-8')) : null
     }
 

@@ -4,6 +4,7 @@ const pump = require('pump')
 const hypercore = require('hypercore')
 const hyperswarm = require('hyperswarm')
 const Identity = require('./identity')
+const Potasium = require('./potasium')
 
 const HYPERCHAT_PROTOCOL_INVITE = "invite"
 
@@ -30,6 +31,7 @@ class Hyperchat extends EventEmitter {
     start() {
         this._feed.ready(() => {
             this._identity = new Identity(this._name, this._feed.key)
+            this._potasitum = new Potasium(this._identity.keypair(), this._identity.me(), this._feed)
             this._print()
             this._announceSelf()
             this._joinPeers()
@@ -62,16 +64,8 @@ class Hyperchat extends EventEmitter {
     }
 
     sendMessageTo(peerID, content) {
-        // encrypt message and append to your own feed
-        let ciphertext = this._identity.encryptMessage(content, peerID)
-        let chatID = this._identity.makeChatIDClient(peerID)
-        let message = {
-            type: 'message',
-            data: {
-                chatID: chatID.toString('hex'),
-                ciphertext: ciphertext.toString('hex')
-            }
-        }
+        //TODO: handle otherSeq in a smart way
+        let message = this._potasitum.createEncryptedMessage(content, peerID, 0)
 
         this._feed.append(message, err => {
             if (err) throw err
@@ -113,7 +107,7 @@ class Hyperchat extends EventEmitter {
                 switch (message.type) {
                     case HYPERCHAT_PROTOCOL_INVITE:
                         let challenge = message.data.challenge
-                        let peerId = this._identity.answerChallenge(challenge)
+                        let peerId = this._potasitum.answerChallenge(challenge)
                         if (peerId) {
                             console.log('challenge answer succeeded')
                             this._inviteStreams[peerId] = stream
@@ -134,7 +128,8 @@ class Hyperchat extends EventEmitter {
         // if we are trying to invite on this topic.
         details.topics
             .filter(t => this._pendingInvites.has(t))
-            .map(t => this._identity.generateChallenge(t))
+            .map(t => this._identity.getFirstPeerIDMatchingTopic(t))
+            .map(peerID => this._potasitum.generateChallenge(peerID))
             .forEach(challenge => {
                 ext.send({
                     type: HYPERCHAT_PROTOCOL_INVITE,
@@ -160,7 +155,7 @@ class Hyperchat extends EventEmitter {
         feed.createReadStream({ live: true }).on('data', data => {
             //TODO: Handle the case where 'feed = this._feed' differently? 
             // try to decrypt data
-            let decryptedMessage = this._identity.decryptMessage(data, peerID)
+            let decryptedMessage = this._potasitum.decryptMessageFromOther(data, peerID)
             if (decryptedMessage) {
                 this.emit('decryptedMessage', peerID, decryptedMessage)
             }
@@ -180,7 +175,7 @@ class Hyperchat extends EventEmitter {
 
         feed = hypercore(this._path + `${feedPublicKey.toString('hex')}`, feedPublicKey, { valueEncoding: 'json' })
         this._feeds[feedPublicKey.toString('hex')] = feed
-        
+
         this._setupReadStreamFor(peerID)
 
         return feed
