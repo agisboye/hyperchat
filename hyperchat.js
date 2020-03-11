@@ -152,10 +152,10 @@ class Hyperchat extends EventEmitter {
         let feedPublicKey = this._identity.getFeedPublicKeyFromPeerID(peerID)
         let feed = this._getFeed(feedPublicKey)
 
-        feed.createReadStream({ live: true }).on('data', data => {
+        feed.createReadStream({ live: true }).on('data', message => {
             //TODO: Handle the case where 'feed = this._feed' differently? 
             // try to decrypt data
-            let decryptedMessage = this._potasitum.decryptMessageFromOther(data, peerID)
+            let decryptedMessage = this._potasitum.decryptMessageFromOther(message.data.ciphertext, peerID)
             if (decryptedMessage) {
                 this.emit('decryptedMessage', peerID, decryptedMessage)
             }
