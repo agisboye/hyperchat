@@ -77,10 +77,14 @@ class Identity {
         return crypto.encryptMessage(plaintext, this._keypair.pk, this._keypair.sk, otherPeerID)
     }
 
-    createEncryptedMessage(plaintext, otherPeerID, dict, seq) {
-        let cipher = this.encryptMessage(plaintext, otherPeerID).toString('hex')
+    createEncryptedMessage(plaintext, otherPeerID, dict, ownSeq, otherSeq) {
+        let internalMessage = {
+            otherSeq: otherSeq || -1,
+            message: plaintext
+        }
+        let cipher = this.encryptMessage(JSON.stringify(internalMessage), otherPeerID).toString('hex')
         let chatID = this.makeChatIDClient(otherPeerID).toString('hex')
-        dict[chatID] = seq
+        dict[chatID] = ownSeq
         return {
             type: 'message',
             data: {
@@ -119,7 +123,7 @@ class Identity {
         let otherPublicKey = crypto.getPublicKeyFromPeerID(otherPeerID)
         let cipherBuffer = Buffer.from(ciphertext, 'hex')
 
-        return crypto.decryptMessage(cipherBuffer, this._keypair.pk, this._keypair.sk, otherPublicKey).toString('utf-8')
+        return JSON.parse(crypto.decryptMessage(cipherBuffer, this._keypair.pk, this._keypair.sk, otherPublicKey).toString('utf-8'))
     }
 
     decryptOwnMessage(ciphertext, otherPeerID) {
