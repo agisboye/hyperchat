@@ -32,7 +32,7 @@ class Potasium {
             message: plaintext
         }
         let cipher = crypto.encryptMessage(JSON.stringify(internalMessage), this._keypair.pk, this._keypair.sk, otherPeerID)
-        let chatID = this._makeChatIDClient(otherPeerID).toString('hex')
+        let chatID = this.makeChatIDClient(otherPeerID).toString('hex')
 
         //TODO: Is this necessary? Needs testing
         this._pendingHeadDict = this._headDict
@@ -46,20 +46,19 @@ class Potasium {
         }
     }
 
-    decryptMessageFromOther(message, otherPeerID) {
-        return this._decryptAMessage(message, otherPeerID, crypto.decryptMessage)
+    decryptMessageFromOther(ciphertext, otherPeerID) {
+        return this._decryptAMessage(ciphertext, otherPeerID, crypto.decryptMessage)
     }
 
-    decryptOwnMessage(message, otherPeerID) {
-        return this._decryptAMessage(message, otherPeerID, crypto.decryptOwnMessage)
+    decryptOwnMessage(ciphertext, otherPeerID) {
+        return this._decryptAMessage(ciphertext, otherPeerID, crypto.decryptOwnMessage)
     }
 
     /*
         Private API
     */
 
-    _decryptAMessage(message, otherPeerID, decrypter) {
-        let ciphertext = message.data.ciphertext
+    _decryptAMessage(ciphertext, otherPeerID, decrypter) {
         let otherPublicKey = crypto.getPublicKeyFromPeerID(otherPeerID)
         let cipherBuffer = Buffer.from(ciphertext, 'hex')
 
@@ -68,12 +67,12 @@ class Potasium {
         return (res) ? JSON.parse(res.toString('utf-8')) : null
     }
 
-    _makeChatIDClient(otherPeerID) {
+    makeChatIDClient(otherPeerID) {
         let otherPublicKey = crypto.getPublicKeyFromPeerID(otherPeerID)
         return crypto.makeChatIDClient(this._keypair.pk, this._keypair.sk, otherPublicKey)
     }
 
-    _makeChatIDServer(otherPeerID) {
+    makeChatIDServer(otherPeerID) {
         let otherPublicKey = crypto.getPublicKeyFromPeerID(otherPeerID)
         return crypto.makeChatIDServer(this._keypair.pk, this._keypair.sk, otherPublicKey)
     }

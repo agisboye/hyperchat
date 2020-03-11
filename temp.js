@@ -20,27 +20,11 @@ feedA.ready(async () => {
             let potasiumA = new Potasium(identityA.keypair(), identityA.me(), feedA)
             let potasiumB = new Potasium(identityB.keypair(), identityB.me(), feedB)
 
-            let challenge = potasiumA.generateChallenge(identityB.me()).toString('hex')
+            let streamA = new ReverseFeedStream(potasiumB, feedA, identityA.me(), false)
+            let streamB = new ReverseFeedStream(potasiumB, feedB, identityA.me(), true)
 
-            let res = potasiumB.answerChallenge(challenge)
+            let merged = new StreamMerger(streamA, streamB)
+            merged.on('data', console.log)
         })
     })
 })
-
-
-// Sending a message
-// 
-// dict["B"] = feedA.length
-
-    // let text = "Hi again B, this is A again"
-
-    // let cipher = identityA.encryptMessage(text, identityB.me())
-
-    // let message = {
-    //     type: 'message',
-    //     data: {
-    //         dict: dict,
-    //         ciphertext: cipher.toString('hex')
-    //     }
-    // }
-    // feedA.append(message)

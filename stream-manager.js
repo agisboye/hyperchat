@@ -37,14 +37,18 @@ class StreamMap extends Transform {
 
 class ReverseFeedStream extends Readable {
 
-    constructor(ownIdentity, feed, otherPeerID, isOwnFeed) {
+    constructor(ownPotasium, feed, otherPeerID, isOwnFeed) {
         super({ objectMode: true })
         this._feed = feed
         this._currentIndex = feed.length - 1
-        this._ownIdentity = ownIdentity
+        this._potasium = ownPotasium
         this._otherPeerID = otherPeerID
         // TODO: Change to use 'feed.writable' when this is tested in hyperchat
         this._isOwnFeed = isOwnFeed
+
+        // debug
+        this._chatIDClient = this._potasium.makeChatIDClient(this._otherPeerID).toString('hex')
+        this._chatIDServer = this._potasium.makeChatIDServer(this._otherPeerID).toString('hex')
     }
 
     _read() {
@@ -60,7 +64,8 @@ class ReverseFeedStream extends Readable {
         // We are at the head and need to find the first message intended for us
         if (this._currentIndex === this._feed.length - 1) {
             let head = await this._feed.head()
-            this._currentIndex = head.data.dict[this._getChatID()]
+            let chatID = this._getChatID()
+            this._currentIndex = head.data.dict[chatID]
         }
 
         let currentMessage = await this._feed.get(this._currentIndex)
@@ -79,9 +84,9 @@ class ReverseFeedStream extends Readable {
 
     _decrypt(ciphertext) {
         if (this._isOwnFeed) {
-            return this._ownIdentity.decryptOwnMessage(ciphertext, this._otherPeerID)
+            return this._potasium.decryptOwnMessage(ciphertext, this._otherPeerID)
         } else {
-            return this._ownIdentity.decryptMessageFromOther(ciphertext, this._otherPeerID)
+            return this._potasium.decryptMessageFromOther(ciphertext, this._otherPeerID)
         }
     }
 
@@ -90,10 +95,10 @@ class ReverseFeedStream extends Readable {
         if (this._chatID) return this._chatID
 
         if (this._isOwnFeed) {
-            this._chatID = this._ownIdentity.makeChatIDClient(this._otherPeerID).toString('hex')
+            this._chatID = this._potasium.makeChatIDClient(this._otherPeerID).toString('hex')
             return this._chatID
         } else {
-            this._chatID = this._ownIdentity.makeChatIDServer(this._otherPeerID).toString('hex')
+            this._chatID = this._potasium.makeChatIDServer(this._otherPeerID).toString('hex')
             return this._chatID
         }
     }
