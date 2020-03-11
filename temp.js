@@ -1,6 +1,6 @@
 const Identity = require('./identity')
 const hypercore = require('hypercore')
-const ReverseFeedStream = require('./stream-manager')
+const { ReverseFeedStream, StreamMerger } = require('./stream-manager')
 const promisify = require('util').promisify
 
 hypercore.prototype.get = promisify(hypercore.prototype.get)
@@ -22,7 +22,9 @@ feedA.ready(async () => {
             let streamA = new ReverseFeedStream(identityB, feedA, identityA.me(), false)
             let streamB = new ReverseFeedStream(identityB, feedB, identityA.me(), true)
 
-            streamB.on('data', data => {
+            let merged = new StreamMerger(streamA, streamB)
+
+            merged.on('data', data => {
                 console.log(data)
             })
         })

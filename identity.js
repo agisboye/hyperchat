@@ -129,7 +129,7 @@ class Identity {
     decryptOwnMessage(ciphertext, otherPeerID) {
         let otherPublicKey = crypto.getPublicKeyFromPeerID(otherPeerID)
         let cipherBuffer = Buffer.from(ciphertext, 'hex')
-        return crypto.decryptOwnMessage(cipherBuffer, this._keypair.pk, this._keypair.sk, otherPublicKey).toString('utf-8')
+        return JSON.parse(crypto.decryptOwnMessage(cipherBuffer, this._keypair.pk, this._keypair.sk, otherPublicKey).toString('utf-8'))
     }
 
     makeChatIDClient(otherPeerID) {

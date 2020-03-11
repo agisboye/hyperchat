@@ -2,6 +2,7 @@
 const { Transform, Readable } = require('stream')
 const promisify = require('util').promisify
 const hypercore = require('hypercore')
+const Union = require('sorted-union-stream')
 
 hypercore.prototype.get = promisify(hypercore.prototype.get)
 hypercore.prototype.head = promisify(hypercore.prototype.head)
@@ -98,4 +99,16 @@ class ReverseFeedStream extends Readable {
     }
 }
 
-module.exports = ReverseFeedStream
+class StreamMerger extends Union {
+    constructor(a, b) {
+        super(a, b, (a, b) => {
+            //TODO: When a = b we return 0 meaning that only a or b is added to the union. 
+            // This is not desireable. We want both messages to be added but we dont care about how to tiebreak. 
+            // e.i. we can return either 1 or -1 instad of 0 in the last branch. 
+            let res = a.otherSeq < b.otherSeq ? 1 : b.otherSeq < a.otherSeq ? -1 : 0
+            return res
+        })
+    }
+}
+
+module.exports = { ReverseFeedStream, StreamMerger }
