@@ -18,6 +18,13 @@ feedA.ready(async () => {
             let identityB = new Identity("B", feedB.key)
             let identityC = new Identity("C", feedC.key)
 
+            // create feedA stream on feedB stream seen from feedB
+            let streamA = new ReverseFeedStream(identityB, feedA, identityA.me(), false)
+            let streamB = new ReverseFeedStream(identityB, feedB, identityA.me(), true)
+
+            streamB.on('data', data => {
+                console.log(data)
+            })
         })
     })
 })

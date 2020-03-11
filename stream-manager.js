@@ -36,14 +36,14 @@ class StreamMap extends Transform {
 
 class ReverseFeedStream extends Readable {
 
-    constructor(ownIdentity, feed, otherPeerID) {
+    constructor(ownIdentity, feed, otherPeerID, isOwnFeed) {
         super({ objectMode: true })
         this._feed = feed
         this._currentIndex = feed.length - 1
         this._ownIdentity = ownIdentity
         this._otherPeerID = otherPeerID
-        //TODO: Not in use now. Can be used to determine if we we're traversing our own (decryptOwnMessage) or someone elses (decryptMessage)
-        this._isOwnFeed = feed.writable
+        // TODO: Change to use 'feed.writable' when this is tested in hyperchat
+        this._isOwnFeed = isOwnFeed
     }
 
     _read() {
@@ -69,7 +69,7 @@ class ReverseFeedStream extends Readable {
         this._currentIndex--
         if (this._currentIndex >= 0) {
             let nextMessage = await this._feed.get(this._currentIndex)
-            this._currentIndex = nextMessage.data.dict["B"]
+            this._currentIndex = nextMessage.data.dict[this._getChatID()]
         }
 
         let decrypted = this._decrypt(currentMessage.data.ciphertext)
@@ -77,30 +77,24 @@ class ReverseFeedStream extends Readable {
     }
 
     _decrypt(ciphertext) {
-        return this._ownIdentity.decryptMessageFromOther(ciphertext, this._otherPeerID)
-        // TODO: Uncomment and test when integrating into hypercore. 
-        // Feeds need to be replicated for '_isOwnFeed' to be set correctly.
-        // if (this._isOwnFeed) {
-        //     return this._ownIdentity.decryptOwnMessage(ciphertext, this._otherPeerID)
-        // } else {
-        //     return this._ownIdentity.decryptMessageFromOther(ciphertext, this._otherPeerID)
-        // }
+        if (this._isOwnFeed) {
+            return this._ownIdentity.decryptOwnMessage(ciphertext, this._otherPeerID)
+        } else {
+            return this._ownIdentity.decryptMessageFromOther(ciphertext, this._otherPeerID)
+        }
     }
 
     _getChatID() {
         // Only calculate the chatID once
         if (this._chatID) return this._chatID
 
-        this._chatID = this._ownIdentity.makeChatIDServer(this._otherPeerID).toString('hex')
-        return this._chatID
-
-        // TODO: Uncomment and test when integrating into hypercore. 
-        // Feeds need to be replicated for '_isOwnFeed' to be set correctly.
-        // if (this._isOwnFeed) {
-        //     return this._ownIdentity.makeChatIDClient(this._otherPeerID).toString('hex')
-        // } else {
-        //     return this._ownIdentity.makeChatIDServer(this._otherPeerID).toString('hex')
-        // }
+        if (this._isOwnFeed) {
+            this._chatID = this._ownIdentity.makeChatIDClient(this._otherPeerID).toString('hex')
+            return this._chatID
+        } else {
+            this._chatID = this._ownIdentity.makeChatIDServer(this._otherPeerID).toString('hex')
+            return this._chatID
+        }
     }
 }
 
