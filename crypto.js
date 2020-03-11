@@ -188,21 +188,3 @@ module.exports = {
     makeChatIDClient,
     makeChatIDServer
 }
-
-// server
-// let serverDiscoveryKey = Buffer.alloc(HYPERCORE_DISCOVERYKEY_SIZE)
-// sodium.randombytes_buf(serverDiscoveryKey)
-// let serverKeyPair = _generateKeyPair()
-// let serverPeerID = createPeerID(serverDiscoveryKey, serverKeyPair.pk)
-
-// // client
-// let clientDiscoveryKey = Buffer.alloc(HYPERCORE_DISCOVERYKEY_SIZE)
-// sodium.randombytes_buf(clientDiscoveryKey)
-// let clientKeyPair = _generateKeyPair()
-// let clientPeerID = createPeerID(clientDiscoveryKey, clientKeyPair.pk)
-
-// // client generates challenge
-// let challenge = generateChallenge(clientKeyPair.sk, clientKeyPair.pk, clientPeerID, serverPeerID)
-
-// // server answers challenge
-// answerChallenge(challenge, serverKeyPair.pk, serverKeyPair.sk)
