@@ -174,20 +174,6 @@ function makeChatIDClient(clientPublicKey, clientSecretKey, serverPublicKey) {
     return output
 }
 
-// TODO: Check if still in use in hyperchat 
-// Incoming chatID matches if it is made by someone we know or if it is made by us
-function chatIDsMatch(incomingChatID, ownPublicKey, ownPrivateKey, otherPublicKey) {
-    let chatIDServer = makeChatIDServer(ownPublicKey, ownPrivateKey, otherPublicKey)
-
-    if (incomingChatID.equals(chatIDServer)) {
-        return "mathedOther"
-    } else if (incomingChatID.equals(makeChatIDClient(ownPublicKey, ownPrivateKey, otherPublicKey))) {
-        return "matchedSelf"
-    } else {
-        return null
-    }
-}
-
 module.exports = {
     getFeedKeyFromPeerID,
     getPublicKeyFromPeerID,
@@ -200,8 +186,7 @@ module.exports = {
     generateKeyPair,
     getDicoveryKeyFromPublicKey,
     makeChatIDClient,
-    makeChatIDServer,
-    chatIDsMatch
+    makeChatIDServer
 }
 
 // server
