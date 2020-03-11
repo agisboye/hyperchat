@@ -77,6 +77,20 @@ class Identity {
         return crypto.encryptMessage(plaintext, this._keypair.pk, this._keypair.sk, otherPeerID)
     }
 
+    createEncryptedMessage(plaintext, otherPeerID, dict, seq) {
+        let cipher = this.encryptMessage(plaintext, otherPeerID).toString('hex')
+        let chatID = this.makeChatIDClient(otherPeerID).toString('hex')
+        dict[chatID] = seq
+        return {
+            type: 'message',
+            data: {
+                dict: dict,
+                ciphertext: cipher.toString('hex')
+            }
+        }
+    }
+
+    //TODO: Check if still in use in hyperchat
     canDecryptMessage(message, otherPeerID) {
         let otherPublicKey = crypto.getPublicKeyFromPeerID(otherPeerID)
         let messageChatID = Buffer.from(message.data.chatID, 'hex')
@@ -84,6 +98,7 @@ class Identity {
         return crypto.chatIDsMatch(messageChatID, this._keypair.pk, this._keypair.sk, otherPublicKey) !== null
     }
 
+    //TODO: Check if still in use in hyperchat
     //TODO: Can we refactor 'decryptMessage' and 'canDecryptMessage' so that 'crypto.chatIDsMatch' is not called twice?
     decryptMessage(message, otherPeerID) {
         let otherPublicKey = crypto.getPublicKeyFromPeerID(otherPeerID)
@@ -116,6 +131,11 @@ class Identity {
     makeChatIDClient(otherPeerID) {
         let otherPublicKey = crypto.getPublicKeyFromPeerID(otherPeerID)
         return crypto.makeChatIDClient(this._keypair.pk, this._keypair.sk, otherPublicKey)
+    }
+
+    makeChatIDServer(otherPeerID) {
+        let otherPublicKey = crypto.getPublicKeyFromPeerID(otherPeerID)
+        return crypto.makeChatIDServer(this._keypair.pk, this._keypair.sk, otherPublicKey)
     }
 
     _hexKeypairToBuffers(keypair) {

@@ -2,6 +2,7 @@
 const { Transform, Readable } = require('stream')
 const promisify = require('util').promisify
 const hypercore = require('hypercore')
+
 hypercore.prototype.get = promisify(hypercore.prototype.get)
 hypercore.prototype.head = promisify(hypercore.prototype.head)
 
@@ -50,18 +51,15 @@ class ReverseFeedStream extends Readable {
     }
 
     async _asyncRead() {
-        // We are at the head and need to find the first message intended for us
-
-        if (this._currentIndex === this._feed.length - 1) {
-            let head = await this._feed.head()
-            this._currentIndex = head.data.dict["B"]
-        }
-
-
+        // base case: End of feed has been reached.
         if (this._currentIndex < 0) {
-            // End of feed has been reached.
             this.push(null)
             return
+        }
+        // We are at the head and need to find the first message intended for us
+        if (this._currentIndex === this._feed.length - 1) {
+            let head = await this._feed.head()
+            this._currentIndex = head.data.dict[this._getChatID()]
         }
 
         let currentMessage = await this._feed.get(this._currentIndex)
@@ -74,15 +72,35 @@ class ReverseFeedStream extends Readable {
             this._currentIndex = nextMessage.data.dict["B"]
         }
 
-        let decrypted;
-
-        if (this._isOwnFeed) {
-            decrypted = this._ownIdentity.decryptOwnMessage(currentMessage.data.ciphertext, this._otherPeerID)
-        } else {
-            decrypted = this._ownIdentity.decryptMessageFromOther(currentMessage.data.ciphertext, this._otherPeerID)
-        }
-
+        let decrypted = this._decrypt(currentMessage.data.ciphertext)
         this.push(decrypted)
+    }
+
+    _decrypt(ciphertext) {
+        return this._ownIdentity.decryptMessageFromOther(ciphertext, this._otherPeerID)
+        // TODO: Uncomment and test when integrating into hypercore. 
+        // Feeds need to be replicated for '_isOwnFeed' to be set correctly.
+        // if (this._isOwnFeed) {
+        //     return this._ownIdentity.decryptOwnMessage(ciphertext, this._otherPeerID)
+        // } else {
+        //     return this._ownIdentity.decryptMessageFromOther(ciphertext, this._otherPeerID)
+        // }
+    }
+
+    _getChatID() {
+        // Only calculate the chatID once
+        if (this._chatID) return this._chatID
+
+        this._chatID = this._ownIdentity.makeChatIDServer(this._otherPeerID).toString('hex')
+        return this._chatID
+
+        // TODO: Uncomment and test when integrating into hypercore. 
+        // Feeds need to be replicated for '_isOwnFeed' to be set correctly.
+        // if (this._isOwnFeed) {
+        //     return this._ownIdentity.makeChatIDClient(this._otherPeerID).toString('hex')
+        // } else {
+        //     return this._ownIdentity.makeChatIDServer(this._otherPeerID).toString('hex')
+        // }
     }
 }
 

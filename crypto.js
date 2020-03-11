@@ -60,7 +60,7 @@ function _splitPeerID(peerID) {
     return { feedKey, publicKey }
 }
 
-function _makeChatIDServer(serverPublicKey, serverSecretKey, clientPublicKey) {
+function makeChatIDServer(serverPublicKey, serverSecretKey, clientPublicKey) {
     let output = Buffer.alloc(sodium.crypto_generichash_BYTES_MAX)
     let { rx, _ } = _generateServerKeys(serverPublicKey, serverSecretKey, clientPublicKey)
     sodium.crypto_generichash(output, rx)
@@ -174,9 +174,10 @@ function makeChatIDClient(clientPublicKey, clientSecretKey, serverPublicKey) {
     return output
 }
 
+// TODO: Check if still in use in hyperchat 
 // Incoming chatID matches if it is made by someone we know or if it is made by us
 function chatIDsMatch(incomingChatID, ownPublicKey, ownPrivateKey, otherPublicKey) {
-    let chatIDServer = _makeChatIDServer(ownPublicKey, ownPrivateKey, otherPublicKey)
+    let chatIDServer = makeChatIDServer(ownPublicKey, ownPrivateKey, otherPublicKey)
 
     if (incomingChatID.equals(chatIDServer)) {
         return "mathedOther"
@@ -199,6 +200,7 @@ module.exports = {
     generateKeyPair,
     getDicoveryKeyFromPublicKey,
     makeChatIDClient,
+    makeChatIDServer,
     chatIDsMatch
 }
 
