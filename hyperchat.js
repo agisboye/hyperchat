@@ -70,10 +70,12 @@ class Hyperchat extends EventEmitter {
 
     sendMessageTo(peerID, content) {
         //TODO: handle otherSeq in a smart way
-        let message = this._potasitum.createEncryptedMessage(content, peerID, 0)
+        this._feedsManager.getFeedLengthOf(peerID, length => {
+            let message = this._potasitum.createEncryptedMessage(content, peerID, length)
 
-        this._feed.append(message, err => {
-            if (err) throw err
+            this._feed.append(message, err => {
+                if (err) throw err
+            })
         })
     }
 

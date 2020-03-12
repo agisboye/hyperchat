@@ -7,6 +7,8 @@ class FeedManager {
     constructor(path, ownFeed) {
         this._path = path
         this._ownFeed = ownFeed
+
+        /// known peers. Keyed by feed public key (hex-string)
         this._feeds = {}
     }
 
@@ -31,7 +33,7 @@ class FeedManager {
         })
     }
 
-    getFeedLength(peerID, cb) {
+    getFeedLengthOf(peerID, cb) {
         this.getFeed(peerID, (feed) => { cb(feed.length) })
     }
 
