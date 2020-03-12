@@ -7,62 +7,43 @@ class FeedManager {
     constructor(path, ownFeed) {
         this._path = path
         this._ownFeed = ownFeed
-        this._feedsData = {}
+        this._feeds = {}
     }
 
-    getFeed(feedPublicKey, cb) {
-        this._lookup(feedPublicKey, data => { cb(data.feed) })
-    }
+    getFeed(peerID, cb) {
+        let feedPublicKey = crypto.getFeedKeyFromPeerID(peerID)
 
-    getFeedLength(feedPublicKey, cb) {
-        this._lookup(feedPublicKey, data => { cb(data.feed) })
-    }
-
-    _lookup(feedPublicKey, cb) {
         if (feedPublicKey.equals(this._ownFeed.key)) {
-            let data = {
-                feed: this._ownFeed,
-                length: this._ownFeed.length
-            }
-            cb(data)
+            cb(this._ownFeed)
             return
         }
 
         let feedPublicKeyString = feedPublicKey.toString('hex')
-        let data = this._feedsData[feedPublicKeyString]
+        let feed = this._feeds[feedPublicKeyString]
 
-        if (data) {
-            cb(data)
+        if (feed) {
+            cb(feed)
             return
         }
 
         this._addFeed(feedPublicKey, () => {
-            cb(this._feedsData[feedPublicKeyString])
+            cb(this._feeds[feedPublicKeyString])
         })
+    }
+
+    getFeedLength(peerID, cb) {
+        this.getFeed(peerID, (feed) => { cb(feed.length) })
     }
 
     _addFeed(feedPublicKey, completion) {
         let path = this._path + `${feedPublicKey.toString('hex')}`
         let feed = hypercore(path, feedPublicKey, { valueEncoding: 'json' })
 
-        feed.on('append', () => this._onAppendHandler(feed))
-
-        this._feedsData[feedPublicKey.toString('hex')] = {
-            feed: feed,
-            length: feed.length
-        }
+        this._feeds[feedPublicKey.toString('hex')] = feed
 
         feed.ready(() => {
             completion()
         })
-    }
-
-    _onAppendHandler(feed) {
-        console.log('onAppend', feed.key.toString('hex').substring(0, 5), feed.length + 1)
-        this._feedsData[feed.key.toString('hex')] = {
-            feed: feed,
-            length: feed.length + 1
-        }
     }
 }
 

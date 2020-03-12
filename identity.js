@@ -41,6 +41,10 @@ class Identity {
         return this._getPeer(peerIDContainingTopic) !== undefined
     }
 
+    knowsPeer(peerID) {
+        return this._peers[peerID.toString('hex')] !== undefined
+    }
+
     getFeedPublicKeyFromPeerID(peerID) {
         return crypto.getFeedKeyFromPeerID(peerID)
     }

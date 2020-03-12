@@ -5,6 +5,7 @@ const hypercore = require('hypercore')
 const hyperswarm = require('hyperswarm')
 const Identity = require('./identity')
 const Potasium = require('./potasium')
+const FeedManager = require('./feedManager')
 const { ReverseFeedStream, StreamMerger } = require('./stream-manager')
 
 const HYPERCHAT_PROTOCOL_INVITE = "invite"
@@ -33,9 +34,11 @@ class Hyperchat extends EventEmitter {
         this._feed.ready(() => {
             this._identity = new Identity(this._name, this._feed.key)
             this._potasitum = new Potasium(this._identity.keypair(), this._identity.me(), this._feed)
+            this._feedsManager = new FeedManager(this._path, this._feed)
             this._print()
             this._announceSelf()
             this._joinPeers()
+            this._setupReadStreams()
             this._swarm.on('connection', (socket, details) => this._onConnection(socket, details))
             this.emit('ready')
         })
@@ -46,8 +49,9 @@ class Hyperchat extends EventEmitter {
         // this._swarm.leave()
     }
 
-    invite(peerId) {
-        let peerFeedKey = this._identity.addPeer(peerId, true)
+    invite(peerID) {
+        this._setupReadstreamForPeerIDIfNeeded(peerID)
+        let peerFeedKey = this._identity.addPeer(peerID, true)
 
         let peerDiscoveryKey = this._identity.getDicoveryKeyFromPublicKey(peerFeedKey)
         this._swarm.join(peerDiscoveryKey, { lookup: true, announce: false })
@@ -55,6 +59,7 @@ class Hyperchat extends EventEmitter {
     }
 
     acceptInvite(peerID) {
+        this._setupReadstreamForPeerIDIfNeeded(peerID)
         this._identity.addPeer(peerID, false)
 
         let stream = this._inviteStreams[peerID]
@@ -83,6 +88,12 @@ class Hyperchat extends EventEmitter {
             console.log(`Joining peer topic: ${peer.toString('hex').substring(0, 10) + "..."}`)
             let discoveryKey = this._identity.getDiscoveryKeyFromPeerID(peer)
             this._swarm.join(discoveryKey, { lookup: true, announce: false })
+        }
+    }
+
+    _setupReadStreams() {
+        for (let peer of this._identity.peers()) {
+            this._setupReadStreamFor(peer)
         }
     }
 
@@ -145,43 +156,49 @@ class Hyperchat extends EventEmitter {
     }
 
     _replicate(peerID, stream) {
-        let feed = this._getFeed(peerID)
-        feed.replicate(stream, { live: true })
-    }
-
-    _setupReadStreamFor(peerID) {
-        let feedPublicKey = this._identity.getFeedPublicKeyFromPeerID(peerID)
-        let feed = this._getFeed(feedPublicKey)
-
-        feed.createReadStream({ live: true }).on('data', message => {
-            //TODO: Handle the case where 'feed = this._feed' differently? 
-            // try to decrypt data
-            let decryptedMessage = this._potasitum.decryptMessageFromOther(message.data.ciphertext, peerID)
-            if (decryptedMessage) {
-                this.emit('decryptedMessage', peerID, decryptedMessage)
-            }
+        this._feedsManager.getFeed(peerID, feed => {
+            feed.replicate(stream, { live: true })
         })
     }
 
-    _getFeed(peerID) {
-
-        let feedPublicKey = this._identity.getFeedPublicKeyFromPeerID(peerID)
-
-        if (feedPublicKey.equals(this._feed.key)) {
-            return this._feed
-        }
-
-        let feed = this._feeds[feedPublicKey.toString('hex')]
-
-        if (feed) return feed
-
-        feed = hypercore(this._path + `${feedPublicKey.toString('hex')}`, feedPublicKey, { valueEncoding: 'json' })
-        this._feeds[feedPublicKey.toString('hex')] = feed
-
+    _setupReadstreamForPeerIDIfNeeded(peerID) {
+        if (this._identity.knowsPeer(peerID)) return
         this._setupReadStreamFor(peerID)
-
-        return feed
     }
+    _setupReadStreamFor(peerID) {
+        console.log("Setting up readstream for", peerID.toString('hex').substring(0, 5))
+        let feedPublicKey = this._identity.getFeedPublicKeyFromPeerID(peerID)
+        this._feedsManager.getFeed(feedPublicKey, feed => {
+            feed.createReadStream({ live: true }).on('data', message => {
+                //TODO: Handle the case where 'feed = this._feed' differently? 
+                // try to decrypt data
+                let decryptedMessage = this._potasitum.decryptMessageFromOther(message.data.ciphertext, peerID)
+                if (decryptedMessage) {
+                    this.emit('decryptedMessage', peerID, decryptedMessage)
+                }
+            })
+        })
+    }
+
+    // _getFeed(peerID) {
+
+    //     let feedPublicKey = this._identity.getFeedPublicKeyFromPeerID(peerID)
+
+    //     if (feedPublicKey.equals(this._feed.key)) {
+    //         return this._feed
+    //     }
+
+    //     let feed = this._feeds[feedPublicKey.toString('hex')]
+
+    //     if (feed) return feed
+
+    //     feed = hypercore(this._path + `${feedPublicKey.toString('hex')}`, feedPublicKey, { valueEncoding: 'json' })
+    //     this._feeds[feedPublicKey.toString('hex')] = feed
+
+    //     this._setupReadStreamFor(peerID)
+
+    //     return feed
+    // }
 
     _print() {
         console.log('------------------------')
