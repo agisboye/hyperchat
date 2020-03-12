@@ -18,7 +18,6 @@ class Hyperchat extends EventEmitter {
         this._path = './feeds/' + name + '/'
         this._swarm = hyperswarm()
         this._feed = hypercore(this._path + "own", { valueEncoding: 'json' })
-        this._feeds = {}
 
         // TODO: Persist pending invites somewhere?
         // TODO: When someone starts replicating with us, remove them from the list of pending invites. Replicating with someone is how an invite is accepted.
@@ -179,26 +178,6 @@ class Hyperchat extends EventEmitter {
             })
         })
     }
-
-    // _getFeed(peerID) {
-
-    //     let feedPublicKey = this._identity.getFeedPublicKeyFromPeerID(peerID)
-
-    //     if (feedPublicKey.equals(this._feed.key)) {
-    //         return this._feed
-    //     }
-
-    //     let feed = this._feeds[feedPublicKey.toString('hex')]
-
-    //     if (feed) return feed
-
-    //     feed = hypercore(this._path + `${feedPublicKey.toString('hex')}`, feedPublicKey, { valueEncoding: 'json' })
-    //     this._feeds[feedPublicKey.toString('hex')] = feed
-
-    //     this._setupReadStreamFor(peerID)
-
-    //     return feed
-    // }
 
     _print() {
         console.log('------------------------')
