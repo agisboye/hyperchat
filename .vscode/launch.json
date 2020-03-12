@@ -41,11 +41,11 @@
         {
             "type": "node",
             "request": "launch",
-            "name": "Launch gist",
+            "name": "Launch temp2",
             "skipFiles": [
                 "<node_internals>/**"
             ],
-            "program": "${workspaceFolder}/gist.js"
+            "program": "${workspaceFolder}/temp2.js"
         }
     ]
 }

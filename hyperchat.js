@@ -5,6 +5,7 @@ const hypercore = require('hypercore')
 const hyperswarm = require('hyperswarm')
 const Identity = require('./identity')
 const Potasium = require('./potasium')
+const { ReverseFeedStream, StreamMerger } = require('./stream-manager')
 
 const HYPERCHAT_PROTOCOL_INVITE = "invite"
 
@@ -163,6 +164,7 @@ class Hyperchat extends EventEmitter {
     }
 
     _getFeed(peerID) {
+
         let feedPublicKey = this._identity.getFeedPublicKeyFromPeerID(peerID)
 
         if (feedPublicKey.equals(this._feed.key)) {
