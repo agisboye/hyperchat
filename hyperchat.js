@@ -166,17 +166,16 @@ class Hyperchat extends EventEmitter {
         if (this._identity.knowsPeer(peerID)) return
         this._setupReadStreamFor(peerID)
     }
-    _setupReadStreamFor(peerID) {
-        console.log("Setting up readstream for", peerID.toString('hex').substring(0, 5))
-        let feedPublicKey = this._identity.getFeedPublicKeyFromPeerID(peerID)
-        this._feedsManager.getFeed(feedPublicKey, feed => {
-            feed.createReadStream({ live: true }).on('data', message => {
-                //TODO: Handle the case where 'feed = this._feed' differently? 
-                // try to decrypt data
-                let decryptedMessage = this._potasitum.decryptMessageFromOther(message.data.ciphertext, peerID)
-                if (decryptedMessage) {
-                    this.emit('decryptedMessage', peerID, decryptedMessage)
-                }
+    _setupReadStreamFor(otherPeerID) {
+        console.log("Setting up readstream for", otherPeerID.toString('hex').substring(0, 5))
+        let otherFeedPublicKey = this._identity.getFeedPublicKeyFromPeerID(otherPeerID)
+        this._feedsManager.getFeed(otherFeedPublicKey, otherFeed => {
+            let otherStream = new ReverseFeedStream(this._potasitum, otherFeed, otherPeerID, false)
+            let ownStream = new ReverseFeedStream(this._potasitum, this._feed, otherPeerID, true)
+
+            let merged = new StreamMerger(otherStream, ownStream)
+            merged.on('data', data => {
+                this.emit('decryptedMessage', otherPeerID, data)
             })
         })
     }
