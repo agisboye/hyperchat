@@ -19,9 +19,19 @@ feedA.ready(async () => {
             let potasiumB = new Potasium(identityB.keypair(), identityB.me(), feedB)
             let potasiumC = new Potasium(identityC.keypair(), identityC.me(), feedC)
 
-            potasiumA.createEncryptedMessage("B1", identityB.me(), 0, cipher => {
-                feedA.append(cipher)
-            })
+            // B's perspective
+            let streamOther = new ReverseFeedStream2(potasiumB, feedA, identityA.me(), false)
+            let streamOwn = new ReverseFeedStream2(potasiumB, feedB, identityA.me(), true)
+
+            for (var i = 0; i < feedA.length; i++) {
+                let res = await streamOther.getPrev()
+                if (res === null) break
+                console.log(res)
+            }
+
+            for (var i = 0; i < feedB.length; i++) {
+                console.log(await streamOwn.getPrev())
+            }
         })
     })
 })
