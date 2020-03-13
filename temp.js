@@ -16,21 +16,11 @@ feedA.ready(() => {
 
         let stream = new ReverseFeedStream2(potasiumA, feedA, identityB.me())
 
-        stream.getPrev(message => {
-            console.log("1", message)
-
-            stream.getPrev(message => {
-                console.log("2", message)
-
-                stream.getPrev(message => {
-                    console.log("3", message)
-
-                    stream.getPrev(message => {
-                        console.log("4", message)
-                    })
-                })
-            })
-        })
+        let p1 = await stream.getPrev()
+        let p2 = await stream.getPrev()
+        let p3 = await stream.getPrev()
+        let p4 = await stream.getPrev()
+        let p5 = await stream.getPrev()
     })
 })
 

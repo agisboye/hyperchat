@@ -5,8 +5,8 @@ const hypercore = require('hypercore')
 const Union = require('sorted-union-stream')
 const { EventEmitter } = require('events')
 
-// hypercore.prototype.get = promisify(hypercore.prototype.get)
-// hypercore.prototype.head = promisify(hypercore.prototype.head)
+hypercore.prototype.get = promisify(hypercore.prototype.get)
+hypercore.prototype.head = promisify(hypercore.prototype.head)
 
 
 class StreamFilter extends Transform {
@@ -126,39 +126,30 @@ class ReverseFeedStream2 extends EventEmitter {
         this._feed.on('download', (index, data) => this._ondownloadHandler(data))
     }
 
-    getPrev(cb) {
-        if (this._currentIndex < 0) {
-            cb(null)
-            return
+    async getPrev() {
+        if (this._currentIndex < 0 || this._currentIndex === null) {
+            return null
         }
 
         if (this._currentIndex === this._feed.length - 1) {
             // first time 'getPrev' is called we find the index to jump to
-            this._feed.head((err, head) => {
-                if (err) throw err
-                // find relevant index for this call
-                this._currentIndex = head.data.dict[this._getChatID()]
-                this._x(cb)
-            })
-        } else {
-            this._x(cb)
+            let head = await this._feed.head()
+            this._currentIndex = head.data.dict[this._getChatID()]
         }
-    }
 
-    _x(cb) {
-        this._feed.get(this._currentIndex, (err, currentMessage) => {
-            if (err) throw err
+        let currentMessage = await this._feed.get(this._currentIndex)
 
-            // Find relevant index for next call
-            this._feed.get(this._currentIndex - 1, (err, nextMessage) => {
-                if (err) throw err
-                this._currentIndex = nextMessage.data.dict[this._getChatID()]
+        if (this._currentIndex) {
+            // A next message still exists. Update _currentIndex for next iteration
+            let nextMessage = await this._feed.get(this._currentIndex - 1)
+            this._currentIndex = nextMessage.data.dict[this._getChatID()]
+        } else {
+            this._currentIndex = null
+        }
 
-                // decrypt currentMessage
-                let decrypted = this._decrypt(currentMessage.data.ciphertext)
-                cb(decrypted)
-            })
-        })
+        // decrypt currentMessage
+        let res = this._decrypt(currentMessage.data.ciphertext)
+        return res
     }
 
     _ondownloadHandler(data) {
