@@ -115,13 +115,14 @@ class ReverseFeedStream extends Readable {
 }
 
 class ReverseFeedStream2 extends EventEmitter {
-    constructor(ownPotasium, feed, otherPeerID) {
+    constructor(ownPotasium, feed, otherPeerID, isOwnFeed) {
         super()
         this._feed = feed
         this._currentIndex = feed.length - 1 // start at head index
         this._potasium = ownPotasium
         this._otherPeerID = otherPeerID
-        this._isOwnFeed = feed.writable
+        //TODO: Change to _feed.writable when integrating into hyperchat
+        this._isOwnFeed = isOwnFeed
 
         this._feed.on('download', (index, data) => this._ondownloadHandler(data))
     }

@@ -8,25 +8,43 @@ let feedB = hypercore('testingB', { valueEncoding: 'json' })
 let feedC = hypercore('testingC', { valueEncoding: 'json' })
 // feed of A is filled with encrypted messages to B and vice versa
 
-feedA.ready(() => {
-    feedC.ready(() => {
-        let identityA = new Identity("A", feedA.key)
-        let identityB = new Identity("B", feedC.key)
-        let potasiumA = new Potasium(identityA.keypair(), identityA.me(), feedA)
+feedA.ready(async () => {
+    feedB.ready(async () => {
+        feedC.ready(async () => {
+            let identityA = new Identity("A", feedA.key)
+            let identityB = new Identity("B", feedB.key)
+            let identityC = new Identity("C", feedC.key)
 
-        let stream = new ReverseFeedStream2(potasiumA, feedA, identityB.me())
+            let potasiumA = new Potasium(identityA.keypair(), identityA.me(), feedA)
+            let potasiumB = new Potasium(identityB.keypair(), identityB.me(), feedB)
+            let potasiumC = new Potasium(identityC.keypair(), identityC.me(), feedC)
 
-        let p1 = await stream.getPrev()
-        let p2 = await stream.getPrev()
-        let p3 = await stream.getPrev()
-        let p4 = await stream.getPrev()
-        let p5 = await stream.getPrev()
+            potasiumA.createEncryptedMessage("B1", identityB.me(), 0, cipher => {
+                feedA.append(cipher)
+            })
+        })
     })
 })
 
 
+// feedA.ready(async () => {
+//     feedB.ready(async () => {
+//         feedC.ready(async () => {
+//             let identityA = new Identity("A", feedA.key)
+//             let identityB = new Identity("B", feedB.key)
+//             let identityC = new Identity("C", feedC.key)
 
-    // let identity = new Identity("A", feedA.key)
-    // let potasium = new Potasium(identity.keypair(), identity.me(), feedA)
+//             let potasiumA = new Potasium(identityA.keypair(), identityA.me(), feedA)
+//             let potasiumB = new Potasium(identityB.keypair(), identityB.me(), feedB)
+//             let potasiumC = new Potasium(identityC.keypair(), identityC.me(), feedC)
 
-    // let stream = new ReverseFeedStream2(potasium, feedA, )
+//             // B's perspective
+//             let streamOther = new ReverseFeedStream2(potasiumB, feedA, identityA.me(), false)
+//             let streamOwn = new ReverseFeedStream2(potasiumB, feedB, identityA.me(), true)
+
+//             for (var i = 0; i < feedA.length; i++) {
+//                 console.log(await streamOther.getPrev())
+//             }
+//         })
+//     })
+// })
