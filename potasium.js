@@ -28,6 +28,7 @@ class Potasium {
 
     createEncryptedMessage(plaintext, otherPeerID, otherSeq) {
         let internalMessage = {
+            ownSeq: this._feed.length + 1,
             otherSeq: (otherSeq !== null) ? otherSeq : -1,
             message: plaintext
         }

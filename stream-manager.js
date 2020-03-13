@@ -107,11 +107,11 @@ class ReverseFeedStream extends Readable {
 class StreamMerger extends Union {
     constructor(a, b) {
         super(a, b, (a, b) => {
-            //TODO: When a = b we return 0 meaning that only a or b is added to the union. 
-            // This is not desireable. We want both messages to be added but we dont care about how to tiebreak. 
-            // e.i. we can return either 1 or -1 instad of 0 in the last branch. 
-            let res = a.otherSeq < b.otherSeq ? 1 : b.otherSeq < a.otherSeq ? -1 : 0
-            return res
+            if (a.otherSeq === b.otherSeq) {
+                return (a.ownSeq > b.otherSeq) ? -1 : 1
+            }
+
+            return a.otherSeq < b.otherSeq ? 1 : -1
         })
     }
 }
