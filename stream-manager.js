@@ -5,8 +5,8 @@ const hypercore = require('hypercore')
 const Union = require('sorted-union-stream')
 const { EventEmitter } = require('events')
 
-hypercore.prototype.get = promisify(hypercore.prototype.get)
-hypercore.prototype.head = promisify(hypercore.prototype.head)
+// hypercore.prototype.get = promisify(hypercore.prototype.get)
+// hypercore.prototype.head = promisify(hypercore.prototype.head)
 
 
 class StreamFilter extends Transform {
@@ -114,6 +114,85 @@ class ReverseFeedStream extends Readable {
     }
 }
 
+class ReverseFeedStream2 extends EventEmitter {
+    constructor(ownPotasium, feed, otherPeerID) {
+        super()
+        this._feed = feed
+        this._currentIndex = feed.length - 1 // start at head index
+        this._potasium = ownPotasium
+        this._otherPeerID = otherPeerID
+        this._isOwnFeed = feed.writable
+
+        this._feed.on('download', (index, data) => this._ondownloadHandler(data))
+    }
+
+    getPrev(cb) {
+        if (this._currentIndex < 0) {
+            cb(null)
+            return
+        }
+
+        if (this._currentIndex === this._feed.length - 1) {
+            // first time 'getPrev' is called we find the index to jump to
+            this._feed.head((err, head) => {
+                if (err) throw err
+                // find relevant index for this call
+                this._currentIndex = head.data.dict[this._getChatID()]
+                this._x(cb)
+            })
+        } else {
+            this._x(cb)
+        }
+    }
+
+    _x(cb) {
+        this._feed.get(this._currentIndex, (err, currentMessage) => {
+            if (err) throw err
+
+            // Find relevant index for next call
+            this._feed.get(this._currentIndex - 1, (err, nextMessage) => {
+                if (err) throw err
+                this._currentIndex = nextMessage.data.dict[this._getChatID()]
+
+                // decrypt currentMessage
+                let decrypted = this._decrypt(currentMessage.data.ciphertext)
+                cb(decrypted)
+            })
+        })
+    }
+
+    _ondownloadHandler(data) {
+        let message = JSON.parse(data.toString('utf-8'))
+        //TODO: Now it's assumed that all received messages are for us. 
+        // This is a poor assumption. Instead we should look in 'message.data.dict'
+        // to determine if a message is intended for us. 
+        let decrypted = this._decrypt(message.data.ciphertext)
+
+        this.emit('data', decrypted)
+    }
+
+    _decrypt(ciphertext) {
+        if (this._isOwnFeed) {
+            return this._potasium.decryptOwnMessage(ciphertext, this._otherPeerID)
+        } else {
+            return this._potasium.decryptMessageFromOther(ciphertext, this._otherPeerID)
+        }
+    }
+
+    _getChatID() {
+        // Only calculate the chatID once
+        if (this._chatID) return this._chatID
+
+        if (this._isOwnFeed) {
+            this._chatID = this._potasium.makeChatIDClient(this._otherPeerID).toString('hex')
+            return this._chatID
+        } else {
+            this._chatID = this._potasium.makeChatIDServer(this._otherPeerID).toString('hex')
+            return this._chatID
+        }
+    }
+}
+
 class StreamMerger extends Union {
     constructor(a, b) {
         super(a, b, (a, b) => {
@@ -133,4 +212,4 @@ class StreamMerger extends Union {
     }
 }
 
-module.exports = { ReverseFeedStream, StreamMerger }
+module.exports = { ReverseFeedStream2, StreamMerger }
