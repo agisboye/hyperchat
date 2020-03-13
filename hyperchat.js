@@ -170,11 +170,15 @@ class Hyperchat extends EventEmitter {
         console.log("Setting up readstream for", otherPeerID.toString('hex').substring(0, 5))
         let otherFeedPublicKey = this._identity.getFeedPublicKeyFromPeerID(otherPeerID)
         this._feedsManager.getFeed(otherFeedPublicKey, otherFeed => {
-            let otherStream = new ReverseFeedStream(this._potasitum, otherFeed, otherPeerID, false)
-            let ownStream = new ReverseFeedStream(this._potasitum, this._feed, otherPeerID, true)
+            let otherStream = new ReverseFeedStream(this._potasitum, otherFeed, otherPeerID)
+            let ownStream = new ReverseFeedStream(this._potasitum, this._feed, otherPeerID)
 
             let merged = new StreamMerger(otherStream, ownStream)
             merged.on('data', data => {
+                this.emit('decryptedMessage', otherPeerID, data)
+            })
+
+            otherStream.emitter.on('data', data => {
                 this.emit('decryptedMessage', otherPeerID, data)
             })
         })

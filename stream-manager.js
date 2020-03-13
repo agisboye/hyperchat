@@ -3,6 +3,7 @@ const { Transform, Readable } = require('stream')
 const promisify = require('util').promisify
 const hypercore = require('hypercore')
 const Union = require('sorted-union-stream')
+const { EventEmitter } = require('events')
 
 hypercore.prototype.get = promisify(hypercore.prototype.get)
 hypercore.prototype.head = promisify(hypercore.prototype.head)
@@ -37,19 +38,18 @@ class StreamMap extends Transform {
 
 class ReverseFeedStream extends Readable {
 
-    constructor(ownPotasium, feed, otherPeerID, isOwnFeed) {
+    constructor(ownPotasium, feed, otherPeerID) {
         super({ objectMode: true })
         this._feed = feed
         this._currentIndex = feed.length - 1
         this._potasium = ownPotasium
         this._otherPeerID = otherPeerID
-        // TODO: Change to use 'feed.writable' when this is tested in hyperchat
-        this._isOwnFeed = isOwnFeed
+        this._isOwnFeed = feed.writable
+        this.emitter = new EventEmitter()
 
-        // debug
-        this._chatIDClient = this._potasium.makeChatIDClient(this._otherPeerID).toString('hex')
-        this._chatIDServer = this._potasium.makeChatIDServer(this._otherPeerID).toString('hex')
+        this._feed.on('download', (index, data) => this._ondownloadHandler(data))
     }
+
 
     _read() {
         this._asyncRead()
@@ -101,6 +101,16 @@ class ReverseFeedStream extends Readable {
             this._chatID = this._potasium.makeChatIDServer(this._otherPeerID).toString('hex')
             return this._chatID
         }
+    }
+
+    _ondownloadHandler(data) {
+        let message = JSON.parse(data.toString('utf-8'))
+        //TODO: Now it's assumed that all received messages are for us. 
+        // This is a poor assumption. Instead we should look in 'message.data.dict'
+        // to determine if a message is intended for us. 
+        let decrypted = this._decrypt(message.data.ciphertext)
+
+        this.emitter.emit('data', decrypted)
     }
 }
 
