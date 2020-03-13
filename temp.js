@@ -32,6 +32,10 @@ feedA.ready(async () => {
             for (var i = 0; i < feedB.length; i++) {
                 console.log(await streamOwn.getPrev())
             }
+
+            streamOwn.on('data', data => {
+                console.log("New data", data)
+            })
         })
     })
 })
