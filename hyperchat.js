@@ -6,7 +6,7 @@ const hyperswarm = require('hyperswarm')
 const Identity = require('./identity')
 const Potasium = require('./potasium')
 const FeedManager = require('./feedManager')
-const FeedMerger = require('./stream-manager')
+const FeedMerger = require('./feedMerger')
 
 const HYPERCHAT_PROTOCOL_INVITE = "invite"
 
