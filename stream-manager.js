@@ -107,11 +107,18 @@ class ReverseFeedStream extends Readable {
 class StreamMerger extends Union {
     constructor(a, b) {
         super(a, b, (a, b) => {
-            if (a.otherSeq === b.otherSeq) {
-                return (a.ownSeq > b.otherSeq) ? -1 : 1
+            if (a.ownSeq > b.otherSeq && (b.ownSeq > a.otherSeq)) {
+                // No strong causality between a, b. Their feed make a cross. 
+                throw new Error("COLLISION DETECTED. NOT HANDLED YET")
             }
 
-            return a.otherSeq < b.otherSeq ? 1 : -1
+            if (a.ownSeq > b.otherSeq) {
+                // a comes before b. Return a
+                return -1
+            } else if (b.ownSeq > a.otherSeq) {
+                // b comes before a. Return b
+                return 1
+            }
         })
     }
 }
