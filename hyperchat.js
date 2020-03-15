@@ -6,7 +6,7 @@ const hyperswarm = require('hyperswarm')
 const Identity = require('./identity')
 const Potasium = require('./potasium')
 const FeedManager = require('./feedManager')
-const { ReverseFeedStream, StreamMerger } = require('./stream-manager')
+const FeedMerger = require('./feedMerger')
 
 const HYPERCHAT_EXTENSION = "hyperchat"
 const HYPERCHAT_PROTOCOL_INVITE = "invite"
@@ -77,10 +77,10 @@ class Hyperchat extends EventEmitter {
     sendMessageTo(peerID, content) {
         //TODO: handle otherSeq in a smart way
         this._feedsManager.getFeedLengthOf(peerID, length => {
-            let message = this._potasitum.createEncryptedMessage(content, peerID, length)
-
-            this._feed.append(message, err => {
-                if (err) throw err
+            this._potasitum.createEncryptedMessage(content, peerID, length, message => {
+                this._feed.append(message, err => {
+                    if (err) throw err
+                })
             })
         })
     }
@@ -189,14 +189,20 @@ class Hyperchat extends EventEmitter {
         if (this._identity.knowsPeer(peerID)) return
         this._setupReadStreamFor(peerID)
     }
-    _setupReadStreamFor(otherPeerID) {
+
+    async _setupReadStreamFor(otherPeerID) {
         console.log("Setting up readstream for", otherPeerID.toString('hex').substring(0, 5))
         let otherFeedPublicKey = this._identity.getFeedPublicKeyFromPeerID(otherPeerID)
-        this._feedsManager.getFeed(otherFeedPublicKey, otherFeed => {
-            let otherStream = new ReverseFeedStream(this._potasitum, otherFeed, otherPeerID, false)
-            let ownStream = new ReverseFeedStream(this._potasitum, this._feed, otherPeerID, true)
 
-            let merged = new StreamMerger(otherStream, ownStream)
+        this._feedsManager.getFeed(otherFeedPublicKey, async otherFeed => {
+            let merged = new FeedMerger(this._potasitum, otherPeerID, otherFeed, this._feed)
+
+            for (var i = 0; i < merged.length; i++) {
+                let res = await merged.getPrev()
+                if (res === null) break
+                this.emit('decryptedMessage', otherPeerID, res)
+            }
+
             merged.on('data', data => {
                 this.emit('decryptedMessage', otherPeerID, data)
             })

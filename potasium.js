@@ -4,14 +4,7 @@ class Potasium {
     constructor(keypair, ownPeerID, feed) {
         this._keypair = keypair
         this._feed = feed
-        this._headDict = {}
-        this._pendingHeadDict = {}
         this._ownPeerID = ownPeerID
-
-        //TODO: Is this necessary? Needs testing
-        feed.on('append', () => {
-            this._headDict = this._pendingHeadDict
-        })
     }
 
     /*
@@ -26,24 +19,27 @@ class Potasium {
         return crypto.answerChallenge(Buffer.from(ciphertext, 'hex'), this._keypair.pk, this._keypair.sk)
     }
 
-    createEncryptedMessage(plaintext, otherPeerID, otherSeq) {
+    createEncryptedMessage(plaintext, otherPeerID, otherSeq, cb) {
         let internalMessage = {
+            ownSeq: this._feed.length + 1,
             otherSeq: (otherSeq !== null) ? otherSeq : -1,
             message: plaintext
         }
         let cipher = crypto.encryptMessage(JSON.stringify(internalMessage), this._keypair.pk, this._keypair.sk, otherPeerID)
         let chatID = this.makeChatIDClient(otherPeerID).toString('hex')
 
-        //TODO: Is this necessary? Needs testing
-        this._pendingHeadDict = this._headDict
-        this._pendingHeadDict[chatID] = this._feed.length
-        return {
-            type: 'message',
-            data: {
-                dict: this._pendingHeadDict,
-                ciphertext: cipher.toString('hex')
-            }
-        }
+        this._feed.head((err, head) => {
+            let dict = (err) ? {} : head.data.dict
+            dict[chatID] = this._feed.length
+            cb({
+                type: 'message',
+                data: {
+                    dict: dict,
+                    ciphertext: cipher.toString('hex')
+                }
+            })
+        })
+
     }
 
     decryptMessageFromOther(ciphertext, otherPeerID) {

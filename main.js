@@ -35,3 +35,17 @@ process.stdin.on('data', data => {
 //     console.log(`[${name}] New data on my stream`)
 //     console.log(data)
 // })
+
+// let stream = chat.streamForPeer(peer)
+
+// stream.from(index, "backwards").on('data', data => {
+
+// })
+
+// stream.get(index, data => {
+//     // get index at 'index'
+// })
+
+// stream.on('data', data => {
+//     // new message
+// })

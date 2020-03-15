@@ -20,13 +20,13 @@
         {
             "type": "node",
             "request": "launch",
-            "name": "Launch as B",
+            "name": "Launch as A",
             "skipFiles": [
                 "<node_internals>/**"
             ],
             "program": "${workspaceFolder}/main.js",
             "args": [
-                "B",
+                "A",
             ]
         },
         {

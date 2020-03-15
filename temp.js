@@ -1,11 +1,7 @@
 const Identity = require('./identity')
 const Potasium = require('./potasium')
 const hypercore = require('hypercore')
-const { ReverseFeedStream, StreamMerger } = require('./stream-manager')
-const promisify = require('util').promisify
-
-hypercore.prototype.get = promisify(hypercore.prototype.get)
-hypercore.prototype.head = promisify(hypercore.prototype.head)
+const { ReverseFeedStream2 } = require('./stream-manager')
 
 let feedA = hypercore('testingA', { valueEncoding: 'json' })
 let feedB = hypercore('testingB', { valueEncoding: 'json' })
@@ -17,14 +13,52 @@ feedA.ready(async () => {
         feedC.ready(async () => {
             let identityA = new Identity("A", feedA.key)
             let identityB = new Identity("B", feedB.key)
+            let identityC = new Identity("C", feedC.key)
+
             let potasiumA = new Potasium(identityA.keypair(), identityA.me(), feedA)
             let potasiumB = new Potasium(identityB.keypair(), identityB.me(), feedB)
+            let potasiumC = new Potasium(identityC.keypair(), identityC.me(), feedC)
 
-            let streamA = new ReverseFeedStream(potasiumB, feedA, identityA.me(), false)
-            let streamB = new ReverseFeedStream(potasiumB, feedB, identityA.me(), true)
+            // B's perspective
+            let streamOther = new ReverseFeedStream2(potasiumB, feedA, identityA.me(), false)
+            let streamOwn = new ReverseFeedStream2(potasiumB, feedB, identityA.me(), true)
 
-            let merged = new StreamMerger(streamA, streamB)
-            merged.on('data', console.log)
+            for (var i = 0; i < feedA.length; i++) {
+                let res = await streamOther.getPrev()
+                if (res === null) break
+                console.log(res)
+            }
+
+            for (var i = 0; i < feedB.length; i++) {
+                console.log(await streamOwn.getPrev())
+            }
+
+            streamOwn.on('data', data => {
+                console.log("New data", data)
+            })
         })
     })
 })
+
+
+// feedA.ready(async () => {
+//     feedB.ready(async () => {
+//         feedC.ready(async () => {
+//             let identityA = new Identity("A", feedA.key)
+//             let identityB = new Identity("B", feedB.key)
+//             let identityC = new Identity("C", feedC.key)
+
+//             let potasiumA = new Potasium(identityA.keypair(), identityA.me(), feedA)
+//             let potasiumB = new Potasium(identityB.keypair(), identityB.me(), feedB)
+//             let potasiumC = new Potasium(identityC.keypair(), identityC.me(), feedC)
+
+//             // B's perspective
+//             let streamOther = new ReverseFeedStream2(potasiumB, feedA, identityA.me(), false)
+//             let streamOwn = new ReverseFeedStream2(potasiumB, feedB, identityA.me(), true)
+
+//             for (var i = 0; i < feedA.length; i++) {
+//                 console.log(await streamOther.getPrev())
+//             }
+//         })
+//     })
+// })
