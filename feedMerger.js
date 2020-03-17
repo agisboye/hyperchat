@@ -45,8 +45,7 @@ class ReverseFeedStream extends EventEmitter {
         this._isOwnFeed = feed.writable
         this.length = feed.length
 
-        //TODO: Should we use on('download') when its the other feed and on('append') when its our own feed?
-        this._feed.on('download', (index, data) => this._ondownloadHandler(data))
+        this._setupHandlers()
     }
 
     async getPrev() {
@@ -75,7 +74,16 @@ class ReverseFeedStream extends EventEmitter {
         return res
     }
 
-    _ondownloadHandler(data) {
+    _setupHandlers() {
+        //TODO: Should we use on('download') when its the other feed and on('append') when its our own feed?
+        if (this._isOwnFeed) {
+            this._feed.on('append', () => this._onOwnFeedAppendHandler())
+        } else {
+            this._feed.on('download', (index, data) => this._onOtherFeedDownloadHandler(data))
+        }
+    }
+
+    _onOtherFeedDownloadHandler(data) {
         let message = JSON.parse(data.toString('utf-8'))
         //TODO: Now it's assumed that all received messages are for us. 
         // This is a poor assumption. Instead we should look in 'message.data.dict'
@@ -86,6 +94,15 @@ class ReverseFeedStream extends EventEmitter {
         let decrypted = this._decrypt(message.data.ciphertext)
 
         this.emit('data', decrypted)
+    }
+
+    _onOwnFeedAppendHandler() {
+        this._feed.head((err, data) => {
+            if (err) throw err
+            let cipher = data.data.ciphertext
+            let decrypted = this._decrypt(cipher)
+            this.emit('data', decrypted)
+        })
     }
 
     _decrypt(ciphertext) {
@@ -148,8 +165,17 @@ class FeedMerger extends EventEmitter {
         let a = this._tmpA || await this._a.getPrev()
         let b = this._tmpB || await this._b.getPrev()
 
-        if (a === null) return b
-        if (b === null) return a
+        if (a === null) {
+            // feed A is empty. 
+            this._tmpB = null
+            return b
+        }
+
+        if (b === null) {
+            // feed B is empty
+            this._tmpA = null
+            return a
+        }
 
         let res = this._compare(a, b)
 
