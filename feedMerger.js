@@ -70,12 +70,11 @@ class ReverseFeedStream extends EventEmitter {
         }
 
         // decrypt currentMessage
-        let res = this._decrypt(currentMessage.data.ciphertext)
-        return res
+        let decrypted = this._decrypt(currentMessage.data.ciphertext)
+        return this._addMetaDataToDecryptedMessage(decrypted)
     }
 
     _setupHandlers() {
-        //TODO: Should we use on('download') when its the other feed and on('append') when its our own feed?
         if (this._isOwnFeed) {
             this._feed.on('append', () => this._onOwnFeedAppendHandler())
         } else {
@@ -85,15 +84,13 @@ class ReverseFeedStream extends EventEmitter {
 
     _onOtherFeedDownloadHandler(data) {
         let message = JSON.parse(data.toString('utf-8'))
-        //TODO: Now it's assumed that all received messages are for us. 
+        //TODO: Now it's assumed that all received messages are to us. 
         // This is a poor assumption. Instead we should look in 'message.data.dict'
         // to determine if a message is intended for us. 
 
-        // TODO: Client doesn't know if 'decrypted' is a messagr from himself or the other party.
-        // Maybe we should add some meta-data to it
         let decrypted = this._decrypt(message.data.ciphertext)
-
-        this.emit('data', decrypted)
+        let decryptedWithMetaData = this._addMetaDataToDecryptedMessage(decrypted)
+        this.emit('data', decryptedWithMetaData)
     }
 
     _onOwnFeedAppendHandler() {
@@ -101,8 +98,18 @@ class ReverseFeedStream extends EventEmitter {
             if (err) throw err
             let cipher = data.data.ciphertext
             let decrypted = this._decrypt(cipher)
-            this.emit('data', decrypted)
+            let decryptedWithMetaData = this._addMetaDataToDecryptedMessage(decrypted)
+
+            this.emit('data', decryptedWithMetaData)
         })
+    }
+
+    _addMetaDataToDecryptedMessage(message) {
+        let sender = this._isOwnFeed ? "self" : "other"
+        return {
+            sender: sender,
+            message: message.message
+        }
     }
 
     _decrypt(ciphertext) {
@@ -158,10 +165,6 @@ class FeedMerger extends EventEmitter {
 
     async getPrev() {
         //TODO: handle collision
-
-        // TODO: Client doesn't know if 'a' or 'b' is a message from himself or the other party.
-        // Maybe we should add some meta-data to it to tell who the sender was. 
-
         let a = this._tmpA || await this._a.getPrev()
         let b = this._tmpB || await this._b.getPrev()
 
@@ -189,6 +192,8 @@ class FeedMerger extends EventEmitter {
             this._tmpB = null
         } else {
             // collision
+            //TODO: Handle properly
+            throw new Error("COLLISION DETECTED. NOT HANDLED YET")
         }
 
         return (res === 1) ? a : b
