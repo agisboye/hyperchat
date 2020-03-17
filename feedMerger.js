@@ -45,6 +45,7 @@ class ReverseFeedStream extends EventEmitter {
         this._isOwnFeed = feed.writable
         this.length = feed.length
 
+        //TODO: Should we use on('download') when its the other feed and on('append') when its our own feed?
         this._feed.on('download', (index, data) => this._ondownloadHandler(data))
     }
 
@@ -79,6 +80,9 @@ class ReverseFeedStream extends EventEmitter {
         //TODO: Now it's assumed that all received messages are for us. 
         // This is a poor assumption. Instead we should look in 'message.data.dict'
         // to determine if a message is intended for us. 
+
+        // TODO: Client doesn't know if 'decrypted' is a messagr from himself or the other party.
+        // Maybe we should add some meta-data to it
         let decrypted = this._decrypt(message.data.ciphertext)
 
         this.emit('data', decrypted)
@@ -137,6 +141,10 @@ class FeedMerger extends EventEmitter {
 
     async getPrev() {
         //TODO: handle collision
+
+        // TODO: Client doesn't know if 'a' or 'b' is a message from himself or the other party.
+        // Maybe we should add some meta-data to it to tell who the sender was. 
+
         let a = this._tmpA || await this._a.getPrev()
         let b = this._tmpB || await this._b.getPrev()
 
