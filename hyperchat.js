@@ -32,6 +32,8 @@ class Hyperchat extends EventEmitter {
 
         // Set of peer IDs that have been confirmed to be online.
         this._onlinePeers = new Set()
+
+        this._protocolKeyPair = Protocol.keyPair()
     }
 
     /** Public API **/
@@ -59,7 +61,8 @@ class Hyperchat extends EventEmitter {
         let peerFeedKey = this._identity.addPeer(peerID, true)
 
         let peerDiscoveryKey = this._identity.getDicoveryKeyFromPublicKey(peerFeedKey)
-        this._swarm.join(peerDiscoveryKey, { lookup: true, announce: false })
+        console.log("invite(), announcing/look-up under (other)", peerDiscoveryKey.toString('hex').substring(0, 10))
+        this._swarm.join(peerDiscoveryKey, { lookup: true, announce: true })
         this._pendingInvites.add(peerDiscoveryKey)
     }
 
@@ -87,13 +90,15 @@ class Hyperchat extends EventEmitter {
 
     /** Private API **/
     _announceSelf() {
-        this._swarm.join(this._feed.discoveryKey, { lookup: false, announce: true })
+        console.log("Announcing/lookup under (self)", this._feed.discoveryKey.toString('hex').substring(0, 10), "...")
+        this._swarm.join(this._feed.discoveryKey, { lookup: true, announce: true })
     }
 
     _joinPeers() {
         for (let peer of this._identity.peers()) {
             console.log(`Joining peer topic: ${peer.toString('hex').substring(0, 10) + "..."}`)
             let discoveryKey = this._identity.getDiscoveryKeyFromPeerID(peer)
+            console.log('_joinPeers, announcing/lookup under (other)', discoveryKey.toString('hex').substring(0, 10))
             this._swarm.join(discoveryKey, { lookup: true, announce: true })
         }
     }
@@ -105,13 +110,20 @@ class Hyperchat extends EventEmitter {
     }
 
     _onConnection(socket, details) {
-        console.log("Connection received.")
+        console.log("Connection received")
 
         const stream = new Protocol(details.client, {
             timeout: false,
+            keyPair: this._protocolKeyPair,
+            onhandshake: () => {
+                // drop connection if it is already established
+                let connectionIsDropped = details.deduplicate(stream.publicKey, stream.remotePublicKey)
+                if (connectionIsDropped) return
+            },
             ondiscoverykey: (discoveryKey) => {
+                console.log("Connection received Protocol, topic:", discoveryKey.toString('hex').substring(0, 10))
                 let peerID = this._identity.getFirstPeerIDMatchingTopic(discoveryKey)
-                
+
                 if (peerID) {
                     // If we have this topic among our known peers, we replicate it.
                     this._replicate(peerID, stream)
