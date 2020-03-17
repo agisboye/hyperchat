@@ -61,14 +61,14 @@ class ReverseFeedStream extends EventEmitter {
 
     _onOtherFeedDownloadHandler(data) {
         let message = JSON.parse(data.toString('utf-8'))
-
         // check if message is inteded for us
-        console.log("MESSAGE!")
-        console.log(message)
+
+        if (message.data.dict[this._getChatID()] === undefined) return
 
         let decrypted = this._decrypt(message.data.ciphertext)
         let decryptedWithMetaData = this._addMetaDataToDecryptedMessage(decrypted)
         this.emit('data', decryptedWithMetaData)
+
     }
 
     _onOwnFeedAppendHandler() {
