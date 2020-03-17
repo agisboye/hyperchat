@@ -55,15 +55,15 @@ class ReverseFeedStream extends EventEmitter {
         if (this._isOwnFeed) {
             this._feed.on('append', () => this._onOwnFeedAppendHandler())
         } else {
-            this._feed.on('download', (index, data) => this._onOtherFeedDownloadHandler(data))
+            this._feed.on('download', (index, data) => this._onOtherFeedDownloadHandler(index, data))
         }
     }
 
-    _onOtherFeedDownloadHandler(data) {
+    _onOtherFeedDownloadHandler(index, data) {
         let message = JSON.parse(data.toString('utf-8'))
+        
         // check if message is inteded for us
-
-        if (message.data.dict[this._getChatID()] === undefined) return
+        if (message.data.dict[this._getChatID()] !== index) return
 
         let decrypted = this._decrypt(message.data.ciphertext)
         let decryptedWithMetaData = this._addMetaDataToDecryptedMessage(decrypted)
