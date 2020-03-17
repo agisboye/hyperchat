@@ -8,33 +8,6 @@ hypercore.prototype.get = promisify(hypercore.prototype.get)
 hypercore.prototype.head = promisify(hypercore.prototype.head)
 
 
-class StreamFilter extends Transform {
-
-    constructor(predicate) {
-        super({ objectMode: true }) // Ensures that 'chunk' is interpreted as json-objects
-        this._predicate = predicate
-    }
-
-    _transform(chunk, encoding, next) {
-        if (this._predicate(chunk)) {
-            return next(null, chunk)
-        }
-
-        next()
-    }
-}
-
-class StreamMap extends Transform {
-    constructor(func) {
-        super({
-            objectMode: true,
-            transform(chunk, encoding, callback) {
-                callback(null, func(chunk))
-            }
-        })
-    }
-}
-
 class ReverseFeedStream extends EventEmitter {
     constructor(ownPotasium, feed, otherPeerID) {
         super()
@@ -71,7 +44,11 @@ class ReverseFeedStream extends EventEmitter {
 
         // decrypt currentMessage
         let decrypted = this._decrypt(currentMessage.data.ciphertext)
-        return this._addMetaDataToDecryptedMessage(decrypted)
+        if (decrypted) {
+            return this._addMetaDataToDecryptedMessage(decrypted)
+        } else {
+            return null
+        }
     }
 
     _setupHandlers() {
@@ -84,9 +61,10 @@ class ReverseFeedStream extends EventEmitter {
 
     _onOtherFeedDownloadHandler(data) {
         let message = JSON.parse(data.toString('utf-8'))
-        //TODO: Now it's assumed that all received messages are to us. 
-        // This is a poor assumption. Instead we should look in 'message.data.dict'
-        // to determine if a message is intended for us. 
+
+        // check if message is inteded for us
+        console.log("MESSAGE!")
+        console.log(message)
 
         let decrypted = this._decrypt(message.data.ciphertext)
         let decryptedWithMetaData = this._addMetaDataToDecryptedMessage(decrypted)
@@ -106,10 +84,8 @@ class ReverseFeedStream extends EventEmitter {
 
     _addMetaDataToDecryptedMessage(message) {
         let sender = this._isOwnFeed ? "self" : "other"
-        return {
-            sender: sender,
-            message: message.message
-        }
+        message['sender'] = sender
+        return message
     }
 
     _decrypt(ciphertext) {
@@ -144,26 +120,11 @@ class FeedMerger extends EventEmitter {
         this._b.on('data', data => this._handleData(data))
     }
 
-    _handleData(data) {
-        this.emit('data', data)
-    }
-
-    _compare(a, b) {
-        if (a.ownSeq > b.otherSeq && (b.ownSeq > a.otherSeq)) {
-            // No strong causality between a, b. Their feed make a cross. 
-            throw new Error("COLLISION DETECTED. NOT HANDLED YET")
-        }
-
-        if (a.ownSeq > b.otherSeq) {
-            // a comes before b. Return a
-            return 1
-        } else if (b.ownSeq > a.otherSeq) {
-            // b comes before a. Return b
-            return -1
-        }
-    }
-
     async getPrev() {
+        let prev = await this._getPrev()
+        return this._removeUnusedMetaData(prev)
+    }
+    async _getPrev() {
         //TODO: handle collision
         let a = this._tmpA || await this._a.getPrev()
         let b = this._tmpB || await this._b.getPrev()
@@ -197,6 +158,32 @@ class FeedMerger extends EventEmitter {
         }
 
         return (res === 1) ? a : b
+    }
+
+    _handleData(data) {
+        this.emit('data', this._removeUnusedMetaData(data))
+    }
+
+    _compare(a, b) {
+        if (a.ownSeq > b.otherSeq && (b.ownSeq > a.otherSeq)) {
+            // No strong causality between a, b. Their feed make a cross. 
+            return 0
+        }
+
+        if (a.ownSeq > b.otherSeq) {
+            // a comes before b. Return a
+            return 1
+        } else if (b.ownSeq > a.otherSeq) {
+            // b comes before a. Return b
+            return -1
+        }
+    }
+
+    _removeUnusedMetaData(data) {
+        return {
+            sender: data.sender,
+            message: data.message
+        }
     }
 }
 
