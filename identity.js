@@ -36,11 +36,6 @@ class Identity {
         return Object.keys(this._peers)
     }
 
-    knows(topic) {
-        let peerIDContainingTopic = this.getFirstPeerIDMatchingTopic(topic)
-        return this._getPeer(peerIDContainingTopic) !== undefined
-    }
-
     knowsPeer(peerID) {
         return this._peers[peerID.toString('hex')] !== undefined
     }

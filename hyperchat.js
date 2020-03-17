@@ -8,6 +8,7 @@ const Potasium = require('./potasium')
 const FeedManager = require('./feedManager')
 const FeedMerger = require('./feedMerger')
 
+const HYPERCHAT_EXTENSION = "hyperchat"
 const HYPERCHAT_PROTOCOL_INVITE = "invite"
 
 class Hyperchat extends EventEmitter {
@@ -19,13 +20,18 @@ class Hyperchat extends EventEmitter {
         this._swarm = hyperswarm()
         this._feed = hypercore(this._path + "own", { valueEncoding: 'json' })
 
-        // TODO: Persist pending invites somewhere?
         // TODO: When someone starts replicating with us, remove them from the list of pending invites. Replicating with someone is how an invite is accepted.
         this._pendingInvites = new Set()
 
         // Streams from peers that have sent an invite which has not yet been accepted/rejected.
         // Keyed by peerID.
         this._inviteStreams = {}
+
+        // Determines whether this client will send an online proof to other clients that it connects to.
+        this.sendIdentityProofs = true
+
+        // Set of peer IDs that have been confirmed to be online.
+        this._onlinePeers = new Set()
     }
 
     /** Public API **/
@@ -88,7 +94,7 @@ class Hyperchat extends EventEmitter {
         for (let peer of this._identity.peers()) {
             console.log(`Joining peer topic: ${peer.toString('hex').substring(0, 10) + "..."}`)
             let discoveryKey = this._identity.getDiscoveryKeyFromPeerID(peer)
-            this._swarm.join(discoveryKey, { lookup: true, announce: false })
+            this._swarm.join(discoveryKey, { lookup: true, announce: true })
         }
     }
 
@@ -103,16 +109,33 @@ class Hyperchat extends EventEmitter {
 
         const stream = new Protocol(details.client, {
             timeout: false,
-            ondiscoverykey: (topic) => {
-                // If we have this topic among our known peers, we replicate it.
-                if (this._identity.knows(topic)) {
-                    let peerID = this._identity.getFirstPeerIDMatchingTopic(topic)
+            ondiscoverykey: (discoveryKey) => {
+                let peerID = this._identity.getFirstPeerIDMatchingTopic(discoveryKey)
+                
+                if (peerID) {
+                    // If we have this topic among our known peers, we replicate it.
                     this._replicate(peerID, stream)
+
+                    // If the peer has sent a capability for  their key, we know that they
+                    // are the owner.
+                    let feedKey = this._identity.getFeedPublicKeyFromPeerID(peerID)
+                    if (stream.remoteVerified(feedKey)) {
+                        console.log(`${peerID.toString('hex').substring(0, 10)}...  is online`)
+                        this._onlinePeers.add(peerID)
+                    }
+                }
+            },
+            onchannelclose: (discoveryKey, publicKey) => {
+                let peerID = this._identity.getFirstPeerIDMatchingTopic(discoveryKey)
+
+                if (peerID) {
+                    console.log(`${peerID.toString('hex').substring(0, 10)}... has gone offline`)
+                    this._onlinePeers.delete(peerID)
                 }
             }
         })
 
-        const ext = stream.registerExtension('hyperchat', {
+        const ext = stream.registerExtension(HYPERCHAT_EXTENSION, {
             encoding: 'json',
             onmessage: (message) => {
                 console.log("Protocol message received")
