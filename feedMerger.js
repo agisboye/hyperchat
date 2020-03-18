@@ -2,6 +2,7 @@
 const { Transform } = require('stream')
 const hypercore = require('hypercore')
 const { EventEmitter } = require('events')
+const promisify = require('util').promisify
 
 class ReverseFeedStream extends EventEmitter {
     constructor(ownPotasium, feed, otherPeerID) {
@@ -18,7 +19,7 @@ class ReverseFeedStream extends EventEmitter {
 
     getPrev(cb) {
         if (this._relevantIndex < 0 || this._relevantIndex === null) {
-            cb(null)
+            cb(new Error("end of stream"), null)
             return
         }
 
@@ -27,35 +28,47 @@ class ReverseFeedStream extends EventEmitter {
             this._feed.head((err, head) => {
                 if (err) throw err
                 this._relevantIndex = head.data.dict[this._getChatID()]
-                this._getDecryptedMessageOfRelevantIndex(decrypted => {
-                    cb(decrypted)
+                //TODO: Try just to pass 'cb' further down
+                this._getDecryptedMessageOfRelevantIndex((err, decrypted) => {
+                    cb(err, decrypted)
                 })
             })
         } else {
             // relevant index was correctly set last time 'getPrev' was called (invariant)
-            this._getDecryptedMessageOfRelevantIndex(decrypted => {
-                cb(decrypted)
+            //TODO: Try just to pass 'cb' further down
+            this._getDecryptedMessageOfRelevantIndex((err, decrypted) => {
+                cb(err, decrypted)
             })
         }
     }
 
     _getDecryptedMessageOfRelevantIndex(cb) {
         this._feed.get(this._relevantIndex, (err, currentMessage) => {
-            if (err) throw err
+            if (err) { cb(err, null); return }
 
             if (this._relevantIndex) {
                 // A next message still exists. Update relevant index for next iteration (invariant)
                 this._feed.get(this._relevantIndex - 1, (err, nextMessage) => {
-                    if (err) throw err
+                    if (err) { cb(err, null); return }
                     this._relevantIndex = nextMessage.data.dict[this._getChatID()]
                     let decrypted = this._decryptAndAddMetaData(currentMessage.data.ciphertext)
-                    cb(decrypted)
+
+                    if (decrypted) {
+                        cb(null, decrypted)
+                    } else {
+                        cb(new Error("Decryption failed"), null)
+                    }
                 })
 
             } else {
                 this._relevantIndex = null
                 let decrypted = this._decryptAndAddMetaData(currentMessage.data.ciphertext)
-                cb(decrypted)
+                if (decrypted) {
+                    cb(null, decrypted)
+                } else {
+                    cb(new Error("Decryption failed"), null)
+                }
+
             }
         })
     }
@@ -140,31 +153,44 @@ class FeedMerger extends EventEmitter {
         this._b.on('data', data => this._handleData(data))
     }
 
+
+    async getPrevAsync() {
+        let x = promisify(this.getPrev)
+
+        let res = await x()
+        console.log(res)
+    }
+
     getPrev(cb) {
-        this._getPrev(prev => {
-            cb(this._removeUnusedMetaData(prev))
+        this._getPrev((err, prev) => {
+            if (err) { cb(err, null); return }
+
+            cb(null, this._removeUnusedMetaData(prev))
         })
     }
 
     _getPrev(cb) {
         //TODO: handle collision
 
-        this._a.getPrev(prevA => {
-            this._b.getPrev(prevB => {
+        this._a.getPrev((err, prevA) => {
+            if (err) { cb(err, null); return }
+            this._b.getPrev((err, prevB) => {
+                if (err) { cb(err, null); return }
+
                 let a = this._tmpA || prevA
                 let b = this._tmpB || prevB
 
                 if (a === null) {
                     // feed A is empty. 
                     this._tmpB = null
-                    cb(b)
+                    cb(null, b)
                     return
                 }
 
                 if (b === null) {
                     // feed B is empty
                     this._tmpA = null
-                    cb(a)
+                    cb(null, a)
                     return
                 }
 
@@ -184,7 +210,7 @@ class FeedMerger extends EventEmitter {
                     throw new Error("COLLISION DETECTED. NOT HANDLED YET")
                 }
 
-                (res === 1) ? cb(a) : cb(b)
+                (res === 1) ? cb(null, a) : cb(null, b)
 
             })
         })

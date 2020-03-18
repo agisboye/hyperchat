@@ -197,22 +197,16 @@ class Hyperchat extends EventEmitter {
         this._setupReadStreamFor(peerID)
     }
 
-    _setupReadStreamFor(otherPeerID) {
+    async _setupReadStreamFor(otherPeerID) {
         console.log("Setting up readstream for", this._peerIDToString(otherPeerID))
         let otherFeedPublicKey = this._identity.getFeedPublicKeyFromPeerID(otherPeerID)
 
-        this._feedsManager.getFeed(otherFeedPublicKey, otherFeed => {
+        this._feedsManager.getFeed(otherFeedPublicKey, async otherFeed => {
             let merged = new FeedMerger(this._potasitum, otherPeerID, otherFeed, this._feed)
 
-            merged.getPrev(prev => {
-                if (prev) {
-                    this.emit('decryptedMessage', otherPeerID, prev)
-                    merged.getPrev(prev2 => {
-                        if (prev2) {
-                            this.emit('decryptedMessage', otherPeerID, prev2)
-                        }
-                    })
-                }
+            merged.getPrev((err, val) => {
+                if (err) throw err
+                this.emit('decryptedMessage', otherPeerID, val)
             })
 
             merged.on('data', data => {
