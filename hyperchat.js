@@ -109,6 +109,7 @@ class Hyperchat extends EventEmitter {
     }
 
     _onConnection(socket, details) {
+        console.log("connection received")
         const stream = new Protocol(details.client, {
             timeout: false,
             keyPair: this._protocolKeyPair,
@@ -204,15 +205,20 @@ class Hyperchat extends EventEmitter {
         this._feedsManager.getFeed(otherFeedPublicKey, async otherFeed => {
             let merged = new FeedMerger(this._potasitum, otherPeerID, otherFeed, this._feed)
 
-            merged.getPrev((err, val) => {
-                if (err) throw err
-                this.emit('decryptedMessage', otherPeerID, val)
-            })
+            for (let i = 0; i < merged.length; i++) {
+                let res = await merged.getPrevAsync()
+                if (res) {
+                    this.emit('decryptedMessage', otherPeerID, res)
+                } else {
+                    break
+                }
+            }
 
-            merged.on('data', data => {
-                this.emit('decryptedMessage', otherPeerID, data)
+            merged.on('data', message => {
+                this.emit('decryptedMessage', otherPeerID, message)
             })
         })
+
     }
 
     _print() {

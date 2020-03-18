@@ -1,6 +1,3 @@
-//TODO: Come up with a better name than 'stream-manager'. Too generic
-const { Transform } = require('stream')
-const hypercore = require('hypercore')
 const { EventEmitter } = require('events')
 const promisify = require('util').promisify
 
@@ -18,38 +15,40 @@ class ReverseFeedStream extends EventEmitter {
     }
 
     getPrev(cb) {
-        if (this._relevantIndex < 0 || this._relevantIndex === null) {
-            cb(new Error("end of stream"), null)
-            return
+        if (this._unused) {
+            let res = this._unused
+            this._unused = null
+            return cb(null, res)
         }
+        if (this._relevantIndex < 0 || this._relevantIndex === null) return cb(new Error("end of stream"), null)
 
         if (this._relevantIndex === this._feed.length - 1) {
             // Base case: We need to find the index of the first message relevant for us.
             this._feed.head((err, head) => {
-                if (err) throw err
+                if (err) return cb(new Error("no head found"), null)
+
                 this._relevantIndex = head.data.dict[this._getChatID()]
-                //TODO: Try just to pass 'cb' further down
-                this._getDecryptedMessageOfRelevantIndex((err, decrypted) => {
-                    cb(err, decrypted)
-                })
+                this._getDecryptedMessageOfRelevantIndex(cb)
             })
         } else {
             // relevant index was correctly set last time 'getPrev' was called (invariant)
-            //TODO: Try just to pass 'cb' further down
-            this._getDecryptedMessageOfRelevantIndex((err, decrypted) => {
-                cb(err, decrypted)
-            })
+            this._getDecryptedMessageOfRelevantIndex(cb)
         }
+    }
+
+    saveUnused(value) {
+        this._unused = value
     }
 
     _getDecryptedMessageOfRelevantIndex(cb) {
         this._feed.get(this._relevantIndex, (err, currentMessage) => {
-            if (err) { cb(err, null); return }
+            if (err) return cb(err, null)
 
             if (this._relevantIndex) {
                 // A next message still exists. Update relevant index for next iteration (invariant)
                 this._feed.get(this._relevantIndex - 1, (err, nextMessage) => {
-                    if (err) { cb(err, null); return }
+                    if (err) return cb(err, null)
+
                     this._relevantIndex = nextMessage.data.dict[this._getChatID()]
                     let decrypted = this._decryptAndAddMetaData(currentMessage.data.ciphertext)
 
@@ -59,7 +58,6 @@ class ReverseFeedStream extends EventEmitter {
                         cb(new Error("Decryption failed"), null)
                     }
                 })
-
             } else {
                 this._relevantIndex = null
                 let decrypted = this._decryptAndAddMetaData(currentMessage.data.ciphertext)
@@ -68,7 +66,6 @@ class ReverseFeedStream extends EventEmitter {
                 } else {
                     cb(new Error("Decryption failed"), null)
                 }
-
             }
         })
     }
@@ -112,7 +109,7 @@ class ReverseFeedStream extends EventEmitter {
     }
 
     _decryptAndAddMetaData(ciphertext) {
-        let decrypted;
+        let decrypted
         if (this._isOwnFeed) {
             decrypted = this._potasium.decryptOwnMessage(ciphertext, this._otherPeerID)
         } else {
@@ -146,72 +143,46 @@ class ReverseFeedStream extends EventEmitter {
 class FeedMerger extends EventEmitter {
     constructor(potasium, otherPeerID, feedA, feedB) {
         super()
-        this._a = new ReverseFeedStream(potasium, feedA, otherPeerID)
-        this._b = new ReverseFeedStream(potasium, feedB, otherPeerID)
-        this.length = this._a.length + this._b.length
-        this._a.on('data', data => this._handleData(data))
-        this._b.on('data', data => this._handleData(data))
+        this._leftStream = new ReverseFeedStream(potasium, feedA, otherPeerID)
+        this._rightStream = new ReverseFeedStream(potasium, feedB, otherPeerID)
+        // TODO: Remove length. Doesnt make sense to use in hyperchat.
+        this.length = this._leftStream.length + this._rightStream.length
+        this._leftStream.on('data', data => this._handleData(data))
+        this._rightStream.on('data', data => this._handleData(data))
+
+        this._promisifiedGetPrev = promisify(this._getPrev).bind(this);
     }
 
 
     async getPrevAsync() {
-        let x = promisify(this.getPrev)
-
-        let res = await x()
-        console.log(res)
-    }
-
-    getPrev(cb) {
-        this._getPrev((err, prev) => {
-            if (err) { cb(err, null); return }
-
-            cb(null, this._removeUnusedMetaData(prev))
-        })
+        try {
+            return this._promisifiedGetPrev()
+        } catch (err) {
+            return null
+        }
     }
 
     _getPrev(cb) {
-        //TODO: handle collision
+        this._leftStream.getPrev((_, left) => {
+            this._rightStream.getPrev((_, right) => {
+                // left feed is empty. 
+                if (left === null) return cb(null, this._removeUnusedMetaData(right))
+                // feed B is empty
+                if (right === null) return cb(null, this._removeUnusedMetaData(left))
 
-        this._a.getPrev((err, prevA) => {
-            if (err) { cb(err, null); return }
-            this._b.getPrev((err, prevB) => {
-                if (err) { cb(err, null); return }
+                let res = this._compare(left, right)
 
-                let a = this._tmpA || prevA
-                let b = this._tmpB || prevB
-
-                if (a === null) {
-                    // feed A is empty. 
-                    this._tmpB = null
-                    cb(null, b)
-                    return
-                }
-
-                if (b === null) {
-                    // feed B is empty
-                    this._tmpA = null
-                    cb(null, a)
-                    return
-                }
-
-                let res = this._compare(a, b)
-
+                // save right/left for next round
                 if (res === 1) {
-                    // save res of b
-                    this._tmpB = b
-                    this._tmpA = null
+                    this._rightStream.saveUnused(right)
                 } else if (res === -1) {
-                    // save ref of a
-                    this._tmpA = a
-                    this._tmpB = null
+                    this._leftStream.saveUnused(left)
                 } else {
-                    // collision
-                    //TODO: Handle properly
+                    //TODO: handle collision
                     throw new Error("COLLISION DETECTED. NOT HANDLED YET")
                 }
 
-                (res === 1) ? cb(null, a) : cb(null, b)
-
+                (res === 1) ? cb(null, this._removeUnusedMetaData(left)) : cb(null, this._removeUnusedMetaData(right))
             })
         })
     }
@@ -220,18 +191,16 @@ class FeedMerger extends EventEmitter {
         this.emit('data', this._removeUnusedMetaData(data))
     }
 
+    /// a comes before b: return 1
+    /// b comes before a: return -1
+    /// a, b not comparable: return 0
     _compare(a, b) {
-        if (a.ownSeq > b.otherSeq && (b.ownSeq > a.otherSeq)) {
-            // No strong causality between a, b. Their feed make a cross. 
-            return 0
-        }
+        if (a.ownSeq > b.otherSeq && (b.ownSeq > a.otherSeq)) return 0
 
-        if (a.ownSeq > b.otherSeq) {
-            // a comes before b. Return a
-            return 1
-        } else if (b.ownSeq > a.otherSeq) {
-            // b comes before a. Return b
-            return -1
+        if (a.ownSeq > b.otherSeq) return 1
+        else if (b.ownSeq > a.otherSeq) return -1
+        else {
+            throw new Error("_compare: Cannot compare " + a + " and " + b)
         }
     }
 

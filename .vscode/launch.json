@@ -32,11 +32,11 @@
         {
             "type": "node",
             "request": "launch",
-            "name": "Launch temp",
+            "name": "Launch test",
             "skipFiles": [
                 "<node_internals>/**"
             ],
-            "program": "${workspaceFolder}/temp.js"
+            "program": "${workspaceFolder}/test.js"
         },
         {
             "type": "node",

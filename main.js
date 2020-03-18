@@ -31,24 +31,8 @@ process.stdin.on('data', data => {
     let message = input.length === 1 ? input[0] : input[1]
 
     let otherPeer = chat._identity.peers()[peerIndex]
+
+    console.log("peerIndex:", peerIndex)
     chat.sendMessageTo(otherPeer, message)
 })
 
-// chat._feed.createReadStream({ live: true }).on('data', data => {
-//     console.log(`[${name}] New data on my stream`)
-//     console.log(data)
-// })
-
-// let stream = chat.streamForPeer(peer)
-
-// stream.from(index, "backwards").on('data', data => {
-
-// })
-
-// stream.get(index, data => {
-//     // get index at 'index'
-// })
-
-// stream.on('data', data => {
-//     // new message
-// })
