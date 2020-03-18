@@ -1,18 +1,13 @@
 //TODO: Come up with a better name than 'stream-manager'. Too generic
 const { Transform } = require('stream')
-const promisify = require('util').promisify
 const hypercore = require('hypercore')
 const { EventEmitter } = require('events')
-
-hypercore.prototype.get = promisify(hypercore.prototype.get)
-hypercore.prototype.head = promisify(hypercore.prototype.head)
-
 
 class ReverseFeedStream extends EventEmitter {
     constructor(ownPotasium, feed, otherPeerID) {
         super()
         this._feed = feed
-        this._currentIndex = feed.length - 1 // start at head index
+        this._relevantIndex = feed.length - 1 // start at head index
         this._potasium = ownPotasium
         this._otherPeerID = otherPeerID
         this._isOwnFeed = feed.writable
@@ -21,34 +16,48 @@ class ReverseFeedStream extends EventEmitter {
         this._setupHandlers()
     }
 
-    async getPrev() {
-        if (this._currentIndex < 0 || this._currentIndex === null) {
-            return null
+    getPrev(cb) {
+        if (this._relevantIndex < 0 || this._relevantIndex === null) {
+            cb(null)
+            return
         }
 
-        if (this._currentIndex === this._feed.length - 1) {
-            // first time 'getPrev' is called we find the index to jump to
-            let head = await this._feed.head()
-            this._currentIndex = head.data.dict[this._getChatID()]
-        }
-
-        let currentMessage = await this._feed.get(this._currentIndex)
-
-        if (this._currentIndex) {
-            // A next message still exists. Update _currentIndex for next iteration
-            let nextMessage = await this._feed.get(this._currentIndex - 1)
-            this._currentIndex = nextMessage.data.dict[this._getChatID()]
+        if (this._relevantIndex === this._feed.length - 1) {
+            // Base case: We need to find the index of the first message relevant for us.
+            this._feed.head((err, head) => {
+                if (err) throw err
+                this._relevantIndex = head.data.dict[this._getChatID()]
+                this._getDecryptedMessageOfRelevantIndex(decrypted => {
+                    cb(decrypted)
+                })
+            })
         } else {
-            this._currentIndex = null
+            // relevant index was correctly set last time 'getPrev' was called (invariant)
+            this._getDecryptedMessageOfRelevantIndex(decrypted => {
+                cb(decrypted)
+            })
         }
+    }
 
-        // decrypt currentMessage
-        let decrypted = this._decrypt(currentMessage.data.ciphertext)
-        if (decrypted) {
-            return this._addMetaDataToDecryptedMessage(decrypted)
-        } else {
-            return null
-        }
+    _getDecryptedMessageOfRelevantIndex(cb) {
+        this._feed.get(this._relevantIndex, (err, currentMessage) => {
+            if (err) throw err
+
+            if (this._relevantIndex) {
+                // A next message still exists. Update relevant index for next iteration (invariant)
+                this._feed.get(this._relevantIndex - 1, (err, nextMessage) => {
+                    if (err) throw err
+                    this._relevantIndex = nextMessage.data.dict[this._getChatID()]
+                    let decrypted = this._decryptAndAddMetaData(currentMessage.data.ciphertext)
+                    cb(decrypted)
+                })
+
+            } else {
+                this._relevantIndex = null
+                let decrypted = this._decryptAndAddMetaData(currentMessage.data.ciphertext)
+                cb(decrypted)
+            }
+        })
     }
 
     _setupHandlers() {
@@ -61,24 +70,25 @@ class ReverseFeedStream extends EventEmitter {
 
     _onOtherFeedDownloadHandler(index, data) {
         let message = JSON.parse(data.toString('utf-8'))
-        
-        // check if message is inteded for us
+
+        // Return if message is not intended for us
         if (message.data.dict[this._getChatID()] !== index) return
 
-        let decrypted = this._decrypt(message.data.ciphertext)
-        let decryptedWithMetaData = this._addMetaDataToDecryptedMessage(decrypted)
-        this.emit('data', decryptedWithMetaData)
+        let decrypted = this._decryptAndAddMetaData(message.data.ciphertext)
 
+        if (decrypted) {
+            this.emit('data', decrypted)
+        }
     }
 
     _onOwnFeedAppendHandler() {
-        this._feed.head((err, data) => {
+        this._feed.head((err, message) => {
             if (err) throw err
-            let cipher = data.data.ciphertext
-            let decrypted = this._decrypt(cipher)
-            let decryptedWithMetaData = this._addMetaDataToDecryptedMessage(decrypted)
+            let decrypted = this._decryptAndAddMetaData(message.data.ciphertext)
 
-            this.emit('data', decryptedWithMetaData)
+            if (decrypted) {
+                this.emit('data', decrypted)
+            }
         })
     }
 
@@ -88,11 +98,21 @@ class ReverseFeedStream extends EventEmitter {
         return message
     }
 
-    _decrypt(ciphertext) {
+    _decryptAndAddMetaData(ciphertext) {
+        let decrypted;
         if (this._isOwnFeed) {
-            return this._potasium.decryptOwnMessage(ciphertext, this._otherPeerID)
+            decrypted = this._potasium.decryptOwnMessage(ciphertext, this._otherPeerID)
         } else {
-            return this._potasium.decryptMessageFromOther(ciphertext, this._otherPeerID)
+            decrypted = this._potasium.decryptMessageFromOther(ciphertext, this._otherPeerID)
+        }
+
+        if (decrypted) {
+            // add metadata for sender
+            let sender = this._isOwnFeed ? "self" : "other"
+            decrypted['sender'] = sender
+            return decrypted
+        } else {
+            return null
         }
     }
 
@@ -120,44 +140,54 @@ class FeedMerger extends EventEmitter {
         this._b.on('data', data => this._handleData(data))
     }
 
-    async getPrev() {
-        let prev = await this._getPrev()
-        return this._removeUnusedMetaData(prev)
+    getPrev(cb) {
+        this._getPrev(prev => {
+            cb(this._removeUnusedMetaData(prev))
+        })
     }
-    async _getPrev() {
+
+    _getPrev(cb) {
         //TODO: handle collision
-        let a = this._tmpA || await this._a.getPrev()
-        let b = this._tmpB || await this._b.getPrev()
 
-        if (a === null) {
-            // feed A is empty. 
-            this._tmpB = null
-            return b
-        }
+        this._a.getPrev(prevA => {
+            this._b.getPrev(prevB => {
+                let a = this._tmpA || prevA
+                let b = this._tmpB || prevB
 
-        if (b === null) {
-            // feed B is empty
-            this._tmpA = null
-            return a
-        }
+                if (a === null) {
+                    // feed A is empty. 
+                    this._tmpB = null
+                    cb(b)
+                    return
+                }
 
-        let res = this._compare(a, b)
+                if (b === null) {
+                    // feed B is empty
+                    this._tmpA = null
+                    cb(a)
+                    return
+                }
 
-        if (res === 1) {
-            // save res of b
-            this._tmpB = b
-            this._tmpA = null
-        } else if (res === -1) {
-            // save ref of a
-            this._tmpA = a
-            this._tmpB = null
-        } else {
-            // collision
-            //TODO: Handle properly
-            throw new Error("COLLISION DETECTED. NOT HANDLED YET")
-        }
+                let res = this._compare(a, b)
 
-        return (res === 1) ? a : b
+                if (res === 1) {
+                    // save res of b
+                    this._tmpB = b
+                    this._tmpA = null
+                } else if (res === -1) {
+                    // save ref of a
+                    this._tmpA = a
+                    this._tmpB = null
+                } else {
+                    // collision
+                    //TODO: Handle properly
+                    throw new Error("COLLISION DETECTED. NOT HANDLED YET")
+                }
+
+                (res === 1) ? cb(a) : cb(b)
+
+            })
+        })
     }
 
     _handleData(data) {

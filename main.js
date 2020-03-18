@@ -27,12 +27,11 @@ chat.on('decryptedMessage', (peerID, message) => {
 process.stdin.on('data', data => {
 
     let input = data.toString('utf-8').split(' ')
-    let peerIndex = input[0]
-    let message = input[1]
+    let peerIndex = input.length === 1 ? 0 : input[0]
+    let message = input.length === 1 ? input[0] : input[1]
 
     let otherPeer = chat._identity.peers()[peerIndex]
-    console.log('> to:', firstPeer.toString('hex').substring(0, 10) + "...")
-    chat.sendMessageTo(firstPeer, message)
+    chat.sendMessageTo(otherPeer, message)
 })
 
 // chat._feed.createReadStream({ live: true }).on('data', data => {
