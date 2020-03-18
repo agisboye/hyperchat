@@ -25,8 +25,12 @@ chat.on('decryptedMessage', (peerID, message) => {
 })
 
 process.stdin.on('data', data => {
-    let message = data.toString('utf-8')
-    let firstPeer = chat._identity.peers()[0]
+
+    let input = data.toString('utf-8').split(' ')
+    let peerIndex = input[0]
+    let message = input[1]
+
+    let otherPeer = chat._identity.peers()[peerIndex]
     console.log('> to:', firstPeer.toString('hex').substring(0, 10) + "...")
     chat.sendMessageTo(firstPeer, message)
 })
