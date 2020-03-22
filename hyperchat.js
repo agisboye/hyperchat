@@ -114,14 +114,13 @@ class Hyperchat extends EventEmitter {
     }
 
     _onConnection(socket, details) {
-        console.log("Connection received")
-
         const stream = new Protocol(details.client, {
             timeout: false,
             keyPair: this._protocolKeyPair,
             onhandshake: () => {
                 // drop connection if it is already established
                 let connectionIsDropped = details.deduplicate(stream.publicKey, stream.remotePublicKey)
+                console.log("onhandshake,", connectionIsDropped)
                 if (connectionIsDropped) return
             },
             ondiscoverykey: (discoveryKey) => {
