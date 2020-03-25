@@ -28,11 +28,16 @@ class ReverseFeedStream extends EventEmitter {
                 if (err) return cb(new Error("no head found"), null)
 
                 this._relevantIndex = head.data.dict[this._getChatID()]
-                this._getDecryptedMessageOfRelevantIndex(cb)
+
+                if (this._relevantIndex === undefined) {
+                    return cb(new Error("no relevant index found"), null)
+                } else {
+                    return this._getDecryptedMessageOfRelevantIndex(cb)
+                }
             })
         } else {
             // relevant index was correctly set last time 'getPrev' was called (invariant)
-            this._getDecryptedMessageOfRelevantIndex(cb)
+            return this._getDecryptedMessageOfRelevantIndex(cb)
         }
     }
 
@@ -153,18 +158,20 @@ class FeedMerger extends EventEmitter {
         this._promisifiedGetPrev = promisify(this._getPrev).bind(this);
     }
 
-
     async getPrevAsync() {
         try {
-            return this._promisifiedGetPrev()
+            return await this._promisifiedGetPrev()
         } catch (err) {
             return null
         }
     }
 
     _getPrev(cb) {
-        this._leftStream.getPrev((_, left) => {
-            this._rightStream.getPrev((_, right) => {
+        this._leftStream.getPrev((leftError, left) => {
+            this._rightStream.getPrev((rightError, right) => {
+
+                // both feeds are empty
+                if (leftError && rightError) return cb(new Error("both streams are empty"), null)
                 // left feed is empty. 
                 if (left === null) return cb(null, this._removeUnusedMetaData(right))
                 // feed B is empty
