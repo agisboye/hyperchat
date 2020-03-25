@@ -7,6 +7,7 @@ const Identity = require('./identity')
 const Potasium = require('./potasium')
 const FeedManager = require('./feedManager')
 const FeedMerger = require('./feedMerger')
+const OnlineIndicator = require('./onlineIndicator')
 
 const HYPERCHAT_EXTENSION = "hyperchat"
 const HYPERCHAT_PROTOCOL_INVITE = "invite"
@@ -30,8 +31,11 @@ class Hyperchat extends EventEmitter {
         // Determines whether this client will send an online proof to other clients that it connects to.
         this.sendIdentityProofs = true
 
-        // Set of peer IDs that have been confirmed to be online.
-        this._onlinePeers = new Set()
+        this._onlineIndicator = new OnlineIndicator(peer => {
+            console.log(peer.substring(0, 10) + "... is online")
+        }, peer => {
+            console.log(peer.substring(0, 10) + "... is offline")
+        })
 
         this._protocolKeyPair = Protocol.keyPair()
     }
@@ -109,13 +113,13 @@ class Hyperchat extends EventEmitter {
     }
 
     _onConnection(socket, details) {
-        console.log("connection received")
         const stream = new Protocol(details.client, {
             timeout: false,
             keyPair: this._protocolKeyPair,
             onhandshake: () => {
                 // drop connection if it is already established
                 let connectionIsDropped = details.deduplicate(stream.publicKey, stream.remotePublicKey)
+                console.log("onhandshake,", connectionIsDropped)
                 if (connectionIsDropped) return
             },
             ondiscoverykey: (discoveryKey) => {
@@ -129,8 +133,7 @@ class Hyperchat extends EventEmitter {
                     // are the owner.
                     let feedKey = this._identity.getFeedPublicKeyFromPeerID(peerID)
                     if (stream.remoteVerified(feedKey)) {
-                        console.log(`${this._peerIDToString(peerID)} is online`)
-                        this._onlinePeers.add(peerID)
+                        this._onlineIndicator.increment(peerID)
                     }
                 }
             },
@@ -138,8 +141,7 @@ class Hyperchat extends EventEmitter {
                 let peerID = this._identity.getFirstPeerIDMatchingTopic(discoveryKey)
 
                 if (peerID) {
-                    console.log(`${this._peerIDToString(peerID)} has gone offline`)
-                    this._onlinePeers.delete(peerID)
+                    this._onlineIndicator.decrement(peerID)
                 }
             }
         })

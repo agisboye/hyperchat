@@ -150,3 +150,7 @@ tmp/
 temp/
 
 # End of https://www.gitignore.io/api/node,code,macos
+
+# exported UMLs
+
+out/UMLs
