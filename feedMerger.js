@@ -20,7 +20,7 @@ class ReverseFeedStream extends EventEmitter {
             this._unused = null
             return cb(null, res)
         }
-        if (this._relevantIndex < 0 || this._relevantIndex === null) return cb(new Error("end of stream"), null)
+        if (this._relevantIndex < 0 || this._relevantIndex === undefined) return cb(new Error("end of stream"), null)
 
         if (this._relevantIndex === this._feed.length - 1) {
             // Base case: We need to find the index of the first message relevant for us.
@@ -29,11 +29,7 @@ class ReverseFeedStream extends EventEmitter {
 
                 this._relevantIndex = head.data.dict[this._getChatID()]
 
-                if (this._relevantIndex === undefined) {
-                    return cb(new Error("no relevant index found"), null)
-                } else {
-                    return this._getDecryptedMessageOfRelevantIndex(cb)
-                }
+                return this._getDecryptedMessageOfRelevantIndex(cb)
             })
         } else {
             // relevant index was correctly set last time 'getPrev' was called (invariant)
@@ -46,6 +42,8 @@ class ReverseFeedStream extends EventEmitter {
     }
 
     _getDecryptedMessageOfRelevantIndex(cb) {
+        if (this._relevantIndex < 0 || this._relevantIndex === undefined) return cb(new Error("end of stream"), null)
+
         this._feed.get(this._relevantIndex, (err, currentMessage) => {
             if (err) return cb(err, null)
 
@@ -55,24 +53,24 @@ class ReverseFeedStream extends EventEmitter {
                     if (err) return cb(err, null)
 
                     this._relevantIndex = nextMessage.data.dict[this._getChatID()]
-                    let decrypted = this._decryptAndAddMetaData(currentMessage.data.ciphertext)
-
-                    if (decrypted) {
-                        cb(null, decrypted)
-                    } else {
-                        cb(new Error("Decryption failed"), null)
-                    }
+                    this._getDecryptedMessage(currentMessage, cb)
                 })
             } else {
-                this._relevantIndex = null
-                let decrypted = this._decryptAndAddMetaData(currentMessage.data.ciphertext)
-                if (decrypted) {
-                    cb(null, decrypted)
-                } else {
-                    cb(new Error("Decryption failed"), null)
-                }
+                // Last message => There is no relevantIndex after this one
+                this._relevantIndex = undefined
+                this._getDecryptedMessage(currentMessage, cb)
             }
         })
+    }
+
+    _getDecryptedMessage(currentMessage, cb) {
+        let decrypted = this._decryptAndAddMetaData(currentMessage.data.ciphertext)
+
+        if (decrypted) {
+            return cb(null, decrypted)
+        } else {
+            return cb(new Error("Decryption failed"), null)
+        }
     }
 
     _setupHandlers() {
@@ -175,8 +173,10 @@ class FeedMerger extends EventEmitter {
                 // left feed is empty. 
                 if (left === null) return cb(null, this._removeUnusedMetaData(right))
                 // feed B is empty
-                if (right === null) return cb(null, this._removeUnusedMetaData(left))
-
+                if (right === null) {
+                    let res = this._removeUnusedMetaData(left)
+                    return cb(null, res)
+                }
                 let res = this._compare(left, right)
 
                 // save right/left for next round
