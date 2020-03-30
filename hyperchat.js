@@ -60,6 +60,10 @@ class Hyperchat extends EventEmitter {
         // this._swarm.leave()
     }
 
+    me() {
+        return this._identity.me().toString("hex")
+    }
+
     invite(peerID) {
         this._setupReadstreamForPeerIDIfNeeded(peerID)
         let peerFeedKey = this._identity.addPeer(peerID, true)
