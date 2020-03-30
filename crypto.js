@@ -87,6 +87,13 @@ function generateKeyPair() {
     return { pk, sk }
 }
 
+function generateSymmetricKey() {
+    let clientKeys = generateKeyPair()
+    let serverKeys = generateKeyPair()
+    let { rx, tx } = _generateClientKeys(clientKeys.pk, clientKeys.sk, serverKeys.pk)
+    return rx
+}
+
 function getFeedKeyFromPeerID(peerID) {
     return _splitPeerID(peerID).feedKey
 }
@@ -140,6 +147,31 @@ function generateChallenge(ownSecretKey, ownPublicKey, ownPeerID, otherPeerID) {
     return ciphertext
 }
 
+function generateChallenge2(ownSecretKey, ownPublicKey, ownPeerID, receiverPeerID, otherPeerIDs, key) {
+    let receiverPublicKey = getPublicKeyFromPeerID(receiverPeerID)
+
+    let nonce = _generateNonce()
+    let { _, tx } = _generateClientKeys(ownPublicKey, ownSecretKey, receiverPublicKey)
+    let proof = _createChallengeProof(nonce, tx)
+
+    let peerIDs = [ownPeerID].concat(otherPeerIDs).map(peerID => peerID.toString('hex'))
+
+    let message = {
+        peerIDs: peerIDs,
+        nonce: nonce.toString('hex'),
+        proof: proof.toString('hex'),
+        key: key.toString('hex')
+    }
+
+    let messageBuffer = Buffer.from(JSON.stringify(message), 'utf8')
+    let ciphertext = Buffer.alloc(messageBuffer.length + sodium.crypto_box_SEALBYTES)
+
+    sodium.crypto_box_seal(ciphertext, messageBuffer, receiverPublicKey)
+
+    return ciphertext
+}
+
+
 function answerChallenge(ciphertext, ownPublicKey, ownSecretKey) {
     // TODO: Check format of data (i.e. ensure everything is present and of proper length). Right now some of the calls will crash the program if someone sends us malformed data.
     let result = Buffer.alloc(ciphertext.length - sodium.crypto_box_SEALBYTES)
@@ -167,6 +199,40 @@ function answerChallenge(ciphertext, ownPublicKey, ownSecretKey) {
     return null
 }
 
+
+function _compareProofs(message, ownPublicKey, ownSecretKey) {
+    // Verify that the sender also knows the shared secret key.
+    let nonce = Buffer.from(message.nonce, 'hex')
+    let proof = Buffer.from(message.proof, 'hex')
+
+    let otherPeerID = Buffer.from(message.peerIDs[0], 'hex')
+    let otherPublicKey = getPublicKeyFromPeerID(otherPeerID)
+
+    let { rx, _ } = _generateServerKeys(ownPublicKey, ownSecretKey, otherPublicKey)
+
+    let myProof = _createChallengeProof(nonce, rx)
+
+    // compare the two hashes
+    return sodium.sodium_memcmp(proof, myProof)
+}
+
+function answerChallenge2(ciphertext, ownPublicKey, ownSecretKey) {
+    let result = Buffer.alloc(ciphertext.length - sodium.crypto_box_SEALBYTES)
+
+    if (sodium.crypto_box_seal_open(result, ciphertext, ownPublicKey, ownSecretKey)) {
+        let message = JSON.parse(result.toString('utf8'))
+
+        if (_compareProofs(message, ownPublicKey, ownSecretKey)) {
+            let peerIDs = message.peerIDs.map(peerID => Buffer.from(peerID, 'hex'))
+            return {
+                key: Buffer.from(message.key, 'hex'),
+                peerIDs: peerIDs
+            }
+        }
+    }
+    return null
+}
+
 function makeChatIDClient(clientPublicKey, clientSecretKey, serverPublicKey) {
     let output = Buffer.alloc(sodium.crypto_generichash_BYTES_MAX)
     let { _, tx } = _generateClientKeys(clientPublicKey, clientSecretKey, serverPublicKey)
@@ -182,8 +248,11 @@ module.exports = {
     decryptMessage,
     decryptOwnMessage,
     generateChallenge,
+    generateChallenge2,
     answerChallenge,
+    answerChallenge2,
     generateKeyPair,
+    generateSymmetricKey,
     getDicoveryKeyFromPublicKey,
     makeChatIDClient,
     makeChatIDServer
