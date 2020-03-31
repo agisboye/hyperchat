@@ -4,14 +4,15 @@ const sodium = require('sodium-native')
 
 class KeyChain {
 
-    /// master key is used for encrypting the keychain on disk
-    constructor(name, masterkey) {
+    constructor(name) {
         //TODO: name is only used for making distinct filepaths. Should be removed in production. 
-        this._masterkey = masterkey
-        this._filepath = "./persistence/keychain" + name + ".txt"
+        this._keyChainFilepath = "./persistence/keychain" + name + ".txt"
+        this._masterKeysFilePath = "./persistence/masterkeys" + name + ".json"
+        this._loadMasterKeys()
+
         // Map from hash of peers in a DM to corresponding secret key for that DM.
         // <hash(otherPeers), key> 
-        this._load()
+        this._loadKeyChain()
     }
 
     /// Returns secret key for DM with 'peerIDs'. 
@@ -25,7 +26,7 @@ class KeyChain {
         key = crypto.generateSymmetricKey()
         this._keys[hash] = key.toString('hex')
 
-        this._save()
+        this._saveKeyChain()
 
         return key
     }
@@ -33,38 +34,59 @@ class KeyChain {
     saveKeyForPeerIDs(key, peerIDs) {
         let hash = this._hashPeers(peerIDs)
         this._keys[hash] = key.toString('hex')
-        this._save()
+        this._saveKeyChain()
+    }
+
+    _loadMasterKeys() {
+        let masterkeys = {}
+
+        try {
+            masterkeys = JSON.parse(fs.readFileSync(this._masterKeysFilePath))
+        } catch { }
+        if (masterkeys.pk === undefined || masterkeys.sk === undefined) {
+            this.masterKeys = crypto.generateKeyPair()
+            this._saveMasterKeys()
+        } else {
+            this.masterKeys = this._hexKeypairToBuffers(masterkeys)
+        }
     }
 
     // decrypts keys and loads them into '_keys'
-    _load() {
+    _loadKeyChain() {
         try {
-            let file = fs.readFileSync(this._filepath, 'utf-8')
+            let file = fs.readFileSync(this._keyChainFilepath, 'utf-8')
             let nonceAndCipher = Buffer.from(file, 'hex')
 
             let { nonce, cipher } = crypto.splitNonceAndCipher(nonceAndCipher)
             let plainTextBuffer = Buffer.alloc(cipher.length - sodium.crypto_secretbox_MACBYTES)
 
-            if (sodium.crypto_secretbox_open_easy(plainTextBuffer, cipher, nonce, this._masterkey)) {
+            if (sodium.crypto_secretbox_open_easy(plainTextBuffer, cipher, nonce, this.masterKeys.sk)) {
                 this._keys = JSON.parse(plainTextBuffer.toString('utf-8'))
             } else {
                 throw new Error("keychhain decryption failed...")
             }
         } catch (err) {
             this._keys = {}
-            this._save()
+            this._saveKeyChain()
         }
     }
 
     // Encrypt and save '_keys' to disk
-    _save() {
+    _saveKeyChain() {
         let plaintext = Buffer.from(JSON.stringify(this._keys), 'utf-8')
         let cipher = Buffer.alloc(plaintext.length + sodium.crypto_secretbox_MACBYTES)
         let nonce = crypto.generateNonce()
-        sodium.crypto_secretbox_easy(cipher, plaintext, nonce, this._masterkey)
+        sodium.crypto_secretbox_easy(cipher, plaintext, nonce, this.masterKeys.sk)
 
         let nonceAndCipher = Buffer.concat([nonce, cipher]).toString('hex')
-        fs.writeFileSync(this._filepath, nonceAndCipher)
+        fs.writeFileSync(this._keyChainFilepath, nonceAndCipher)
+    }
+
+    /// Save masterkeys to disk unencrypted. Should be encrypted using a password in the real world
+    _saveMasterKeys() {
+        let obj = JSON.stringify(this.masterKeys)
+
+        fs.writeFileSync(this._masterKeysFilePath, obj)
     }
 
     _hashPeers(peerIDs) {
@@ -77,6 +99,13 @@ class KeyChain {
         let output = Buffer.alloc(sodium.crypto_generichash_BYTES_MAX)
         sodium.crypto_generichash(output, Buffer.concat(peerIDs))
         return output.toString('hex')
+    }
+
+    _hexKeypairToBuffers(keypair) {
+        return {
+            pk: Buffer.from(keypair.pk, 'hex'),
+            sk: Buffer.from(keypair.sk, 'hex')
+        }
     }
 }
 

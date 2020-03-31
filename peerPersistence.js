@@ -1,23 +1,12 @@
 const crypto = require('./crypto')
 const fs = require('fs')
 
-class Identity {
+class PeerPersistence {
 
-    constructor(name, myPublicKey) {
-        this._filepath = "./persistence/identity" + name + ".json"
-        // load keypair and peers from disc
-        this._peers = {}
-        this._load()
-        this._publicKey = myPublicKey
-        this._peerID = crypto.createPeerID(this._publicKey, this._keypair.pk)
-    }
-
-    me() {
-        return this._peerID
-    }
-
-    keypair() {
-        return this._keypair
+    constructor(name) {
+        this._filepath = "./persistence/peers" + name + ".json"
+        // load peers from disc
+        this._loadPeers()
     }
 
     peers() {
@@ -67,45 +56,24 @@ class Identity {
         return crypto.getDicoveryKeyFromPublicKey(publicKey)
     }
 
-    _hexKeypairToBuffers(keypair) {
-        return {
-            pk: Buffer.from(keypair.pk, 'hex'),
-            sk: Buffer.from(keypair.sk, 'hex')
-        }
-    }
-
     _getPeer(id) {
         return this._peers[id.toString('hex')]
     }
 
-    _load() {
-        let obj = {}
+    _loadPeers() {
+        let peers = {}
 
         try {
             obj = JSON.parse(fs.readFileSync(this._filepath))
         } catch { }
-        if (obj.keypair === undefined) {
-            this._keypair = crypto.generateKeyPair()
-            this._save()
-        } else {
-            this._keypair = this._hexKeypairToBuffers(obj.keypair)
-        }
 
-        this._peers = obj.peers || {}
+        this._peers = peers || {}
     }
 
-    /// Save peers and keypair to disk
+    /// Save peers to disk
     _save() {
-        let obj = JSON.stringify({
-            keypair: {
-                pk: this._keypair.pk.toString('hex'),
-                sk: this._keypair.sk.toString('hex')
-            },
-            peers: this._peers
-        })
-
-        fs.writeFileSync(this._filepath, obj)
+        fs.writeFileSync(this._filepath, JSON.stringify(this._peers))
     }
 }
 
-module.exports = Identity
+module.exports = PeerPersistence

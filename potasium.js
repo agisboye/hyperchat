@@ -1,10 +1,10 @@
 const crypto = require('./crypto')
 
 class Potasium {
-    constructor(keypair, ownPeerID, feed) {
+    constructor(keypair, feed) {
         this._keypair = keypair
         this._feed = feed
-        this._ownPeerID = ownPeerID
+        this.ownPeerID = crypto.createPeerID(feed.key, keypair.pk)
     }
 
     /*
@@ -12,7 +12,7 @@ class Potasium {
     */
 
     generateChallenge2(key, receiverPeerID, otherPeerIDs) {
-        return crypto.generateChallenge2(this._keypair.sk, this._keypair.pk, this._ownPeerID, receiverPeerID, otherPeerIDs, key)
+        return crypto.generateChallenge2(this._keypair.sk, this._keypair.pk, this.ownPeerID, receiverPeerID, otherPeerIDs, key)
     }
     //TODO: Remove when group key distribution works
     // generateChallenge(otherPeerID) {

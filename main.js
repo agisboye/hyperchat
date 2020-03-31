@@ -32,7 +32,7 @@ process.stdin.on('data', data => {
     //console.log("peerIndex:", peerIndex)
     // let otherPeer = chat._identity.peers()[peerIndex]
 
-    let otherPeer = chat._identity.peers()[0]
+    let otherPeer = chat._peerPersistence.peers()[0]
     let message = data.toString('utf-8')
 
     chat.sendMessageTo(otherPeer, message)
