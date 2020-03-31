@@ -61,10 +61,10 @@ class PeerPersistence {
     }
 
     _loadPeers() {
-        let peers = {}
+        let peers;
 
         try {
-            obj = JSON.parse(fs.readFileSync(this._filepath))
+            peers = JSON.parse(fs.readFileSync(this._filepath))
         } catch { }
 
         this._peers = peers || {}
