@@ -58,8 +58,7 @@ class Identity {
     // TODO: This is a really shitty solution....... Find a better one
     getFirstPeerIDMatchingTopic(topic) {
         return this.peers().find(peerID => {
-            let publicKey = this.getFeedPublicKeyFromPeerID(peerID)
-            let discoveryKey = crypto.getDicoveryKeyFromPublicKey(publicKey)
+            let discoveryKey = this.getDiscoveryKeyFromPeerID(peerID)
             return discoveryKey.equals(topic)
         })
     }
