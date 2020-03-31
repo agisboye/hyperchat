@@ -89,10 +89,11 @@ class KeyChain {
         fs.writeFileSync(this._masterKeysFilePath, obj)
     }
 
+    //TODO: Remove duplicate peerIDs
     _hashPeers(peerIDs) {
         // We need to sort the peers lexiographically because a 
         // DM between A and B is identical to a DM between B and A
-        let peerIDStrings = peerIDs.map((p) => p.toString('hex'))
+        let peerIDStrings = [... new Set(peerIDs)].map((p) => p.toString('hex'))
         peerIDStrings.sort((p1, p2) => p1.localeCompare(p2))
         peerIDs = peerIDStrings.map((p) => Buffer.from(p, 'hex'))
 

@@ -3,10 +3,10 @@ const promisify = require('util').promisify
 const ReverseFeedStream = require('./reverseFeedStream')
 
 class FeedMerger extends EventEmitter {
-    constructor(potasium, otherPeerID, feedA, feedB) {
+    constructor(potasium, key, feedA, feedB, otherPeerID) {
         super()
-        this._leftStream = new ReverseFeedStream(potasium, feedA, otherPeerID)
-        this._rightStream = new ReverseFeedStream(potasium, feedB, otherPeerID)
+        this._leftStream = new ReverseFeedStream(potasium, feedA, key, otherPeerID)
+        this._rightStream = new ReverseFeedStream(potasium, feedB, key, otherPeerID)
         // TODO: Remove length. Doesnt make sense to use in hyperchat.
         this.length = this._leftStream.length + this._rightStream.length
         this._leftStream.on('data', data => this._handleData(data))

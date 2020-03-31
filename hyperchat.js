@@ -46,7 +46,7 @@ class Hyperchat extends EventEmitter {
     /** Public API **/
     start() {
         this._feed.ready(() => {
-            this._potasitum = new Potasium(this._keychain.masterKeys, this._feed)
+            this._potasium = new Potasium(this._feed, this._keychain.masterKeys)
             this._feedsManager = new FeedManager(this._path, this._feed)
             this._print()
             this._announceSelf()
@@ -86,7 +86,8 @@ class Hyperchat extends EventEmitter {
     sendMessageTo(peerID, content) {
         //TODO: handle otherSeq in a smart way
         this._feedsManager.getFeedLengthOf(peerID, length => {
-            this._potasitum.createEncryptedMessage(content, peerID, length, message => {
+            let key = this._keychain.getKeyForPeerIDs([peerID])
+            this._potasium.createEncryptedMessage2(content, length, key, message => {
                 this._feed.append(message, err => {
                     if (err) throw err
                 })
@@ -155,7 +156,7 @@ class Hyperchat extends EventEmitter {
                 switch (message.type) {
                     case HYPERCHAT_PROTOCOL_INVITE:
                         let challenge = Buffer.from(message.data.challenge, 'hex')
-                        let answer = this._potasitum.answerChallenge2(challenge)
+                        let answer = this._potasium.answerChallenge2(challenge)
                         if (answer) {
                             console.log("Protocol message received. Challenge answered")
                             this._keychain.saveKeyForPeerIDs(answer.key, answer.peerIDs)
@@ -183,7 +184,7 @@ class Hyperchat extends EventEmitter {
             .map(t => this._peerPersistence.getFirstPeerIDMatchingTopic(t))
             .map(peerID => {
                 let key = this._keychain.getKeyForPeerIDs([peerID])
-                return this._potasitum.generateChallenge2(key, peerID, [])
+                return this._potasium.generateChallenge2(key, peerID, [])
             })
             .forEach(challenge => {
                 ext.send({
@@ -194,7 +195,7 @@ class Hyperchat extends EventEmitter {
                 })
             })
 
-        this._replicate(this._potasitum.ownPeerID, stream)
+        this._replicate(this._potasium.ownPeerID, stream)
         pump(stream, socket, stream)
     }
 
@@ -212,9 +213,9 @@ class Hyperchat extends EventEmitter {
     async _setupReadStreamFor(otherPeerID) {
         console.log("Setting up readstream for", this._peerIDToString(otherPeerID))
         let otherFeedPublicKey = this._peerPersistence.getFeedPublicKeyFromPeerID(otherPeerID)
-
+        let key = this._keychain.getKeyForPeerIDs([otherPeerID])
         this._feedsManager.getFeed(otherFeedPublicKey, async otherFeed => {
-            let merged = new FeedMerger(this._potasitum, otherPeerID, otherFeed, this._feed)
+            let merged = new FeedMerger(this._potasium, key, otherFeed, this._feed, otherPeerID)
 
             for (let i = 0; i < merged.length; i++) {
                 let res = await merged.getPrevAsync()
@@ -235,7 +236,7 @@ class Hyperchat extends EventEmitter {
     _print() {
         console.log('------------------------')
         console.log('> status [hex notation]:')
-        console.log("> Peer ID:", this._potasitum.ownPeerID.toString('hex'))
+        console.log("> Peer ID:", this._potasium.ownPeerID.toString('hex'))
         console.log('> feedkey =', this._feed.key.toString('hex').substring(0, 10) + "...")
         console.log('> disckey =', this._feed.discoveryKey.toString('hex').substring(0, 10) + "...")
         console.log('> public  =', this._keychain.masterKeys.pk.toString('hex').substring(0, 10) + "...")
