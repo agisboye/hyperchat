@@ -15,6 +15,10 @@ class Potasium {
         return crypto.generateChallenge(this._keypair.sk, this._keypair.pk, this._ownPeerID, otherPeerID)
     }
 
+    generateChallenge2(otherPeerID) {
+        return crypto.generateChallenge2(this._keypair.sk, this._keypair.pk, this._ownPeerID, otherPeerID, [], )
+    }
+
     answerChallenge(ciphertext) {
         return crypto.answerChallenge(Buffer.from(ciphertext, 'hex'), this._keypair.pk, this._keypair.sk)
     }
