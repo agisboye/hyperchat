@@ -7,14 +7,14 @@
         {
             "type": "node",
             "request": "launch",
-            "name": "Launch as A and invite B",
+            "name": "Launch as B and invite A",
             "skipFiles": [
                 "<node_internals>/**"
             ],
             "program": "${workspaceFolder}/main.js",
             "args": [
-                "A",
-                "f9a780b03bfc0300132d65e2f54a742847a246947fc48b2654e1f580687580fcb260f76047f1f283b9efea6d5f08db4c9c96a5fe432efe64f006a86e68b89a1f"
+                "B",
+                "723984ea1d5ba0b4fd4e12b9842fdd7630b14b132835df5f120a77e9b267863c045d683dfc28352f742490ade090b36951237b39c05c152ffd1731b2b3be8047"
             ]
         },
         {

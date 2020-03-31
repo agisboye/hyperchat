@@ -21,7 +21,10 @@ class Identity {
     }
 
     peers() {
-        return Object.keys(this._peers).map(k => Buffer.from(k, 'hex'))
+        return Object.keys(this._peers).map(k => {
+            let res = Buffer.from(k, 'hex')
+            return res
+        })
     }
 
     /// Adds peerID to known peers and returns feed public key for peerID

@@ -8,6 +8,7 @@ const Potasium = require('./potasium')
 const FeedManager = require('./feedManager')
 const FeedMerger = require('./feedMerger')
 const OnlineIndicator = require('./onlineIndicator')
+const KeyChain = require('./keychain')
 
 const HYPERCHAT_EXTENSION = "hyperchat"
 const HYPERCHAT_PROTOCOL_INVITE = "invite"
@@ -21,7 +22,8 @@ class Hyperchat extends EventEmitter {
         this._swarm = hyperswarm()
         this._feed = hypercore(this._path + "own", { valueEncoding: 'json' })
 
-        // TODO: When someone starts replicating with us, remove them from the list of pending invites. Replicating with someone is how an invite is accepted.
+        // TODO: When someone starts replicating with us, remove them from the list of pending invites. 
+        // Replicating with someone is how an invite is accepted.
         this._pendingInvites = new Set()
 
         // Streams from peers that have sent an invite which has not yet been accepted/rejected.
@@ -46,6 +48,7 @@ class Hyperchat extends EventEmitter {
             this._identity = new Identity(this._name, this._feed.key)
             this._potasitum = new Potasium(this._identity.keypair(), this._identity.me(), this._feed)
             this._feedsManager = new FeedManager(this._path, this._feed)
+            this._keychain = new KeyChain(this._name, this._identity.keypair().sk)
             this._print()
             this._announceSelf()
             this._joinPeers()
@@ -152,12 +155,16 @@ class Hyperchat extends EventEmitter {
 
                 switch (message.type) {
                     case HYPERCHAT_PROTOCOL_INVITE:
-                        let challenge = message.data.challenge
-                        let peerId = this._potasitum.answerChallenge(challenge)
-                        if (peerId) {
+                        let challenge = Buffer.from(message.data.challenge, 'hex')
+                        let answer = this._potasitum.answerChallenge2(challenge)
+                        if (answer) {
                             console.log("Protocol message received. Challenge answered")
-                            this._inviteStreams[peerId] = stream
-                            this.emit('invite', peerId)
+                            this._keychain.saveKeyForPeerIDs(answer.key, answer.peerIDs)
+
+                            // Sender of challenge is always at head. Tail is other people in group.
+                            let peerID = answer.peerIDs[0]
+                            this._inviteStreams[peerID] = stream
+                            this.emit('invite', peerID)
                         } else {
                             console.log("Protocol message received. Challenge failed")
                         }
@@ -175,12 +182,15 @@ class Hyperchat extends EventEmitter {
         details.topics
             .filter(t => this._pendingInvites.has(t))
             .map(t => this._identity.getFirstPeerIDMatchingTopic(t))
-            .map(peerID => this._potasitum.generateChallenge(peerID))
+            .map(peerID => {
+                let key = this._keychain.getKeyForPeerIDs([peerID])
+                return this._potasitum.generateChallenge2(key, peerID, [])
+            })
             .forEach(challenge => {
                 ext.send({
                     type: HYPERCHAT_PROTOCOL_INVITE,
                     data: {
-                        challenge: challenge
+                        challenge: challenge.toString('hex')
                     }
                 })
             })

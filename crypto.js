@@ -203,7 +203,8 @@ function answerChallenge(ciphertext, ownPublicKey, ownSecretKey) {
     return null
 }
 
-function answerChallenge2(ciphertext, ownPublicKey, ownSecretKey) {
+/// returns {key: Buffer, peerIDs: [Buffer]) if challenge can be answered else null
+function answerChallenge2(ciphertext, ownSecretKey, ownPublicKey) {
     let result = Buffer.alloc(ciphertext.length - sodium.crypto_box_SEALBYTES)
 
     if (sodium.crypto_box_seal_open(result, ciphertext, ownPublicKey, ownSecretKey)) {

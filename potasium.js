@@ -11,16 +11,20 @@ class Potasium {
         Public API
     */
 
-    generateChallenge(otherPeerID) {
-        return crypto.generateChallenge(this._keypair.sk, this._keypair.pk, this._ownPeerID, otherPeerID)
+    generateChallenge2(key, receiverPeerID, otherPeerIDs) {
+        return crypto.generateChallenge2(this._keypair.sk, this._keypair.pk, this._ownPeerID, receiverPeerID, otherPeerIDs, key)
     }
+    //TODO: Remove when group key distribution works
+    // generateChallenge(otherPeerID) {
+    //     return crypto.generateChallenge(this._keypair.sk, this._keypair.pk, this._ownPeerID, otherPeerID)
+    // }
+    //TODO: Remove when group key distribution works 
+    // answerChallenge(ciphertext) {
+    //     return crypto.answerChallenge(Buffer.from(ciphertext, 'hex'), this._keypair.pk, this._keypair.sk)
+    // }
 
-    generateChallenge2(otherPeerID) {
-        return crypto.generateChallenge2(this._keypair.sk, this._keypair.pk, this._ownPeerID, otherPeerID, [], )
-    }
-
-    answerChallenge(ciphertext) {
-        return crypto.answerChallenge(Buffer.from(ciphertext, 'hex'), this._keypair.pk, this._keypair.sk)
+    answerChallenge2(ciphertext) {
+        return crypto.answerChallenge2(ciphertext, this._keypair.sk, this._keypair.pk)
     }
 
     createEncryptedMessage(plaintext, otherPeerID, otherSeq, cb) {

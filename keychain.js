@@ -30,6 +30,12 @@ class KeyChain {
         return key
     }
 
+    saveKeyForPeerIDs(key, peerIDs) {
+        let hash = this._hashPeers(peerIDs)
+        this._keys[hash] = key.toString('hex')
+        this._save()
+    }
+
     // decrypts keys and loads them into '_keys'
     _load() {
         try {

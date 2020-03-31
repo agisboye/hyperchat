@@ -26,13 +26,15 @@ chat.on('decryptedMessage', (peerID, message) => {
 
 process.stdin.on('data', data => {
 
-    let input = data.toString('utf-8').split(' ')
-    let peerIndex = input.length === 1 ? 0 : input[0]
-    let message = input.length === 1 ? input[0] : input[1]
+    // let input = data.toString('utf-8').split(' ')
+    // let peerIndex = input.length === 1 ? 0 : input[0]
+    // let message = input.length === 1 ? input[0] : input[1]
+    //console.log("peerIndex:", peerIndex)
+    // let otherPeer = chat._identity.peers()[peerIndex]
 
-    let otherPeer = chat._identity.peers()[peerIndex]
+    let otherPeer = chat._identity.peers()[0]
+    let message = data.toString('utf-8')
 
-    console.log("peerIndex:", peerIndex)
     chat.sendMessageTo(otherPeer, message)
 })
 
