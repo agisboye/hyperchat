@@ -87,7 +87,7 @@ class Hyperchat extends EventEmitter {
         //TODO: handle otherSeq in a smart way
         this._feedsManager.getFeedLengthOf(peerID, length => {
             let key = this._keychain.getKeyForPeerIDs([peerID])
-            this._potasium.createEncryptedMessage2(content, length, key, message => {
+            this._potasium.createEncryptedMessage(content, length, key, message => {
                 this._feed.append(message, err => {
                     if (err) throw err
                 })
@@ -156,7 +156,7 @@ class Hyperchat extends EventEmitter {
                 switch (message.type) {
                     case HYPERCHAT_PROTOCOL_INVITE:
                         let challenge = Buffer.from(message.data.challenge, 'hex')
-                        let answer = this._potasium.answerChallenge2(challenge)
+                        let answer = this._potasium.answerChallenge(challenge)
                         if (answer) {
                             console.log("Protocol message received. Challenge answered")
                             this._keychain.saveKeyForPeerIDs(answer.key, answer.peerIDs)
@@ -184,7 +184,7 @@ class Hyperchat extends EventEmitter {
             .map(t => this._peerPersistence.getFirstPeerIDMatchingTopic(t))
             .map(peerID => {
                 let key = this._keychain.getKeyForPeerIDs([peerID])
-                return this._potasium.generateChallenge2(key, peerID, [])
+                return this._potasium.generateChallenge(key, peerID, [])
             })
             .forEach(challenge => {
                 ext.send({
