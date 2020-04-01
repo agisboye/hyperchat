@@ -48,6 +48,7 @@ class Hyperchat extends EventEmitter {
     start() {
         this._feed.ready(() => {
             this._potasium = new Potasium(this._feed, this._keychain.masterKeys)
+            this._keychain.setOwnPeerID(this._potasium.ownPeerID)
             this._feedsManager = new FeedManager(this._path, this._feed)
             this._print()
             this._announceSelf()

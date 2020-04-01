@@ -15,6 +15,11 @@ class KeyChain {
         this._loadKeyChain()
     }
 
+    setOwnPeerID(id) {
+        // Invariant: ownPeerID is always added to all 'peerIDs'
+        this._ownPeerID = id.toString('hex')
+    }
+
     /// Returns secret key for DM with 'peerIDs'. 
     /// If DM is new, a secret key is generated, saved, and returned. 
     getKeyForPeerIDs(peerIDs) {
@@ -90,11 +95,16 @@ class KeyChain {
     }
 
     _hashPeers(peerIDs) {
+        // Ensure that own peer ID is part of 'peerIDs'
+        peerIDs = peerIDs.map(p => p.toString('hex'))
+        let peerIDSet = new Set(peerIDs)
+        peerIDSet.add(this._ownPeerID)
+
+        peerIDs = [... peerIDSet]
         // We need to sort the peers lexiographically because a 
         // DM between A and B is identical to a DM between B and A
-        let peerIDStrings = [... new Set(peerIDs)].map((p) => p.toString('hex'))
-        peerIDStrings.sort((p1, p2) => p1.localeCompare(p2))
-        peerIDs = peerIDStrings.map((p) => Buffer.from(p, 'hex'))
+        peerIDs.sort((p1, p2) => p1.localeCompare(p2))
+        peerIDs = peerIDs.map((p) => Buffer.from(p, 'hex'))
 
         return crypto.hash(Buffer.concat(peerIDs)).toString('hex')
     }

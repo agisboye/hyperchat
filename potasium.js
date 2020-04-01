@@ -42,7 +42,7 @@ class Potasium {
     }
 
     makeChatID(key, senderPeerID) {
-        return crypto.makeChatID(key, senderPeerID)
+        return crypto.makeChatID(key, senderPeerID).toString('hex')
     }
 
     //TODO: How do we obtain all other peerIDs in the group only from 'peerID'? We need some kind of map here.
