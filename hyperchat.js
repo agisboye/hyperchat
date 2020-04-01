@@ -21,12 +21,13 @@ class Hyperchat extends EventEmitter {
         this._path = './feeds/' + name + '/'
         this._swarm = hyperswarm()
         this._feed = hypercore(this._path + "own", { valueEncoding: 'json' })
-        this._peerPersistence = new PeerPersistence(this._name)
-        this._keychain = new KeyChain(this._name)
 
-        // TODO: When someone starts replicating with us, remove them from the list of pending invites. 
+        // TODO: When someone starts replicating with us, remove them from the list of pending invites? 
         // Replicating with someone is how an invite is accepted.
+        this._peerPersistence = new PeerPersistence(this._name)
+        //TODO: Only used for debugging purposes
         this._pendingInvites = new Set()
+        this._keychain = new KeyChain(this._name)
 
         // Streams from peers that have sent an invite which has not yet been accepted/rejected.
         // Keyed by peerID.
@@ -62,14 +63,20 @@ class Hyperchat extends EventEmitter {
         // this._swarm.leave()
     }
 
-    invite(peerID) {
-        this._setupReadstreamForPeerIDIfNeeded(peerID)
-        let peerFeedKey = this._peerPersistence.addPeer(peerID, true)
+    invite(peerIDs) {
+        let discoveryKeys = []
+        peerIDs.forEach(peer => {
+            this._setupReadstreamForPeerIDIfNeeded(peer)
+            let peerFeedKey = this._peerPersistence.addPeer(peer, true)
 
-        let peerDiscoveryKey = this._peerPersistence.getDicoveryKeyFromPublicKey(peerFeedKey)
-        console.log("inviting", this._peerIDToString(peerDiscoveryKey))
-        this._swarm.join(peerDiscoveryKey, { lookup: true, announce: true })
-        this._pendingInvites.add(peerDiscoveryKey)
+            let peerDiscoveryKey = this._peerPersistence.getDiscoveryKeyFromFeedPublicKey(peerFeedKey)
+            discoveryKeys.push(peerDiscoveryKey)
+
+            console.log("inviting", this._peerIDToString(peerDiscoveryKey))
+            this._swarm.join(peerDiscoveryKey, { lookup: true, announce: true })
+            this._pendingInvites.add(peerDiscoveryKey)
+        })
+        this._peerPersistence.addPendingInvite({ discKeys: discoveryKeys, peerIDs: peerIDs })
     }
 
     acceptInvite(peerID) {
@@ -178,13 +185,14 @@ class Hyperchat extends EventEmitter {
 
         // Send a challenge to the connecting peer
         // if we are trying to invite on this topic.
-        details.topics
-            .filter(t => this._pendingInvites.has(t))
-            .map(t => this._peerPersistence.getFirstPeerIDMatchingTopic(t))
-            .map(peerID => {
-                let key = this._keychain.getKeyForPeerIDs([peerID])
-                return this._potasium.generateChallenge(key, peerID, [])
+
+        this._peerPersistence.getAllPendingInvitesMatchingTopics(details.topics)
+            .map(peerIDs => {
+                let key = this._keychain.getKeyForPeerIDs(peerIDs)
+                let challenges = peerIDs.map(peerID => this._potasium.generateChallenge(key, peerID, peerIDs))
+                return challenges
             })
+            .flat()
             .forEach(challenge => {
                 ext.send({
                     type: HYPERCHAT_PROTOCOL_INVITE,
@@ -193,6 +201,22 @@ class Hyperchat extends EventEmitter {
                     }
                 })
             })
+
+        // details.topics
+        //     .filter(t => this._pendingInvites.has(t))
+        //     .map(t => this._peerPersistence.getFirstPeerIDMatchingTopic(t))
+        //     .map(peerID => {
+        //         let key = this._keychain.getKeyForPeerIDs([peerID])
+        //         return this._potasium.generateChallenge(key, peerID, [])
+        //     })
+        //     .forEach(challenge => {
+        //         ext.send({
+        //             type: HYPERCHAT_PROTOCOL_INVITE,
+        //             data: {
+        //                 challenge: challenge.toString('hex')
+        //             }
+        //         })
+        //     })
 
         this._replicate(this._potasium.ownPeerID, stream)
         pump(stream, socket, stream)

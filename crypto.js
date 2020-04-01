@@ -67,7 +67,7 @@ function getPublicKeyFromPeerID(peerID) {
     return _splitPeerID(peerID).publicKey
 }
 
-function getDicoveryKeyFromPublicKey(publicKey) {
+function getDiscoveryKeyFromFeedPublicKey(publicKey) {
     var digest = Buffer.alloc(32)
     sodium.crypto_generichash(digest, Buffer.from('hypercore'), publicKey)
     return digest
@@ -173,7 +173,14 @@ function generateNonce() {
     return nonce
 }
 
+function hash(input) {
+    let output = Buffer.alloc(sodium.crypto_generichash_BYTES_MIN)
+    sodium.crypto_generichash(output, input)
+    return output
+}
+
 module.exports = {
+    hash,
     generateNonce,
     splitNonceAndCipher,
     getFeedKeyFromPeerID,
@@ -184,7 +191,7 @@ module.exports = {
     answerChallenge,
     generateKeyPair,
     generateSymmetricKey,
-    getDicoveryKeyFromPublicKey,
+    getDiscoveryKeyFromFeedPublicKey,
     makeChatID,
     encryptMessage,
     decryptMessage

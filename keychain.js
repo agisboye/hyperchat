@@ -96,9 +96,7 @@ class KeyChain {
         peerIDStrings.sort((p1, p2) => p1.localeCompare(p2))
         peerIDs = peerIDStrings.map((p) => Buffer.from(p, 'hex'))
 
-        let output = Buffer.alloc(sodium.crypto_generichash_BYTES_MAX)
-        sodium.crypto_generichash(output, Buffer.concat(peerIDs))
-        return output.toString('hex')
+        return crypto.hash(Buffer.concat(peerIDs)).toString('hex')
     }
 
     _hexKeypairToBuffers(keypair) {

@@ -8,8 +8,16 @@ chat.start()
 
 chat.on('ready', () => {
     if (knowsOtherPeerId) {
-        let otherPeerId = Buffer.from(process.argv[3], 'hex')
-        chat.invite(otherPeerId)
+        if (process.argv[4]) {
+            // we have 2 ids
+            let otherPeerId1 = Buffer.from(process.argv[3], 'hex')
+            let otherPeerid2 = Buffer.from(process.argv[4], 'hex')
+            chat.invite([otherPeerId1, otherPeerid2])
+        } else {
+            // we have 1 id
+            let otherPeerId1 = Buffer.from(process.argv[3], 'hex')
+            chat.invite([otherPeerId1])
+        }
     }
 })
 
