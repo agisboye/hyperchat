@@ -63,13 +63,15 @@ class Hyperchat extends EventEmitter {
         // TODO:
         // this._swarm.leave()
     }
+    me() {
+        return this._potasium.ownPeerID
+    }
 
     invite(peerIDs) {
         let discoveryKeys = []
         peerIDs.forEach(peer => {
             this._setupReadstreamForPeerIDIfNeeded(peer)
             let peerFeedKey = this._peerPersistence.addPeer(peer, true)
-
             let peerDiscoveryKey = this._peerPersistence.getDiscoveryKeyFromFeedPublicKey(peerFeedKey)
             discoveryKeys.push(peerDiscoveryKey)
 
