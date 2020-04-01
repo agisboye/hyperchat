@@ -33,6 +33,11 @@ process.stdin.on('data', data => {
     // let otherPeer = chat._identity.peers()[peerIndex]
 
     let otherPeer = chat._peerPersistence.peers()[0]
+    if (!otherPeer) {
+        console.log("no peers known")
+        return
+    }
+
     let message = data.toString('utf-8')
 
     chat.sendMessageTo(otherPeer, message)

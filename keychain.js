@@ -89,7 +89,6 @@ class KeyChain {
         fs.writeFileSync(this._masterKeysFilePath, obj)
     }
 
-    //TODO: Remove duplicate peerIDs
     _hashPeers(peerIDs) {
         // We need to sort the peers lexiographically because a 
         // DM between A and B is identical to a DM between B and A

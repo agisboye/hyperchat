@@ -84,7 +84,6 @@ class Hyperchat extends EventEmitter {
     }
 
     sendMessageTo(peerID, content) {
-        //TODO: handle otherSeq in a smart way
         this._feedsManager.getFeedLengthOf(peerID, length => {
             let key = this._keychain.getKeyForPeerIDs([peerID])
             this._potasium.createEncryptedMessage(content, length, key, message => {
