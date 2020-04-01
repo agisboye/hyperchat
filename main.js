@@ -8,8 +8,16 @@ chat.start()
 
 chat.on('ready', () => {
     if (knowsOtherPeerId) {
-        let otherPeerId = Buffer.from(process.argv[3], 'hex')
-        chat.invite(otherPeerId)
+        if (process.argv[4]) {
+            // we have 2 ids
+            let otherPeerId1 = Buffer.from(process.argv[3], 'hex')
+            let otherPeerid2 = Buffer.from(process.argv[4], 'hex')
+            chat.invite([otherPeerId1, otherPeerid2])
+        } else {
+            // we have 1 id
+            let otherPeerId1 = Buffer.from(process.argv[3], 'hex')
+            chat.invite([otherPeerId1])
+        }
     }
 })
 
@@ -26,13 +34,20 @@ chat.on('decryptedMessage', (peerID, message) => {
 
 process.stdin.on('data', data => {
 
-    let input = data.toString('utf-8').split(' ')
-    let peerIndex = input.length === 1 ? 0 : input[0]
-    let message = input.length === 1 ? input[0] : input[1]
+    // let input = data.toString('utf-8').split(' ')
+    // let peerIndex = input.length === 1 ? 0 : input[0]
+    // let message = input.length === 1 ? input[0] : input[1]
+    //console.log("peerIndex:", peerIndex)
+    // let otherPeer = chat._identity.peers()[peerIndex]
 
-    let otherPeer = chat._identity.peers()[peerIndex]
+    let otherPeer = chat._peerPersistence.peers()[0]
+    if (!otherPeer) {
+        console.log("no peers known")
+        return
+    }
 
-    console.log("peerIndex:", peerIndex)
+    let message = data.toString('utf-8')
+
     chat.sendMessageTo(otherPeer, message)
 })
 

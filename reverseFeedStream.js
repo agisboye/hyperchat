@@ -1,15 +1,16 @@
 const { EventEmitter } = require('events')
 
 class ReverseFeedStream extends EventEmitter {
-    constructor(ownPotasium, feed, otherPeerID) {
+    constructor(ownPotasium, feed, key, otherPeerID) {
         super()
         this._feed = feed
         this._relevantIndex = feed.length - 1 // start at head index
         this._potasium = ownPotasium
-        this._otherPeerID = otherPeerID
+        this._key = key
         this._isOwnFeed = feed.writable
         this.length = feed.length
-
+        this._peerID = this._isOwnFeed ? this._potasium.ownPeerID : otherPeerID
+        this._chatID = this._potasium.makeChatID(this._key, this._peerID).toString('hex')
         this._setupHandlers()
     }
 
@@ -26,7 +27,7 @@ class ReverseFeedStream extends EventEmitter {
             this._feed.head((err, head) => {
                 if (err) return cb(new Error("no head found"), null)
 
-                this._relevantIndex = head.data.dict[this._getChatID()]
+                this._relevantIndex = head.data.dict[this._chatID]
 
                 return this._getDecryptedMessageOfRelevantIndex(cb)
             })
@@ -51,7 +52,7 @@ class ReverseFeedStream extends EventEmitter {
                 this._feed.get(this._relevantIndex - 1, (err, nextMessage) => {
                     if (err) return cb(err, null)
 
-                    this._relevantIndex = nextMessage.data.dict[this._getChatID()]
+                    this._relevantIndex = nextMessage.data.dict[this._chatID]
                     this._getDecryptedMessage(currentMessage, cb)
                 })
             } else {
@@ -84,7 +85,7 @@ class ReverseFeedStream extends EventEmitter {
         let message = JSON.parse(data.toString('utf-8'))
 
         // Return if message is not intended for us
-        if (message.data.dict[this._getChatID()] !== index) return
+        if (message.data.dict[this._chatID] !== index) return
 
         let decrypted = this._decryptAndAddMetaData(message.data.ciphertext)
 
@@ -111,33 +112,11 @@ class ReverseFeedStream extends EventEmitter {
     }
 
     _decryptAndAddMetaData(ciphertext) {
-        let decrypted
-        if (this._isOwnFeed) {
-            decrypted = this._potasium.decryptOwnMessage(ciphertext, this._otherPeerID)
-        } else {
-            decrypted = this._potasium.decryptMessageFromOther(ciphertext, this._otherPeerID)
-        }
-
+        let decrypted = this._potasium.decryptMessageUsingKey(Buffer.from(ciphertext, 'hex'), this._key)
         if (decrypted) {
-            // add metadata for sender
-            let sender = this._isOwnFeed ? "self" : "other"
-            decrypted['sender'] = sender
-            return decrypted
+            return this._addMetaDataToDecryptedMessage(decrypted)
         } else {
             return null
-        }
-    }
-
-    _getChatID() {
-        // Only calculate the chatID once
-        if (this._chatID) return this._chatID
-
-        if (this._isOwnFeed) {
-            this._chatID = this._potasium.makeChatIDClient(this._otherPeerID).toString('hex')
-            return this._chatID
-        } else {
-            this._chatID = this._potasium.makeChatIDServer(this._otherPeerID).toString('hex')
-            return this._chatID
         }
     }
 }
