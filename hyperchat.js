@@ -81,7 +81,10 @@ class Hyperchat extends EventEmitter {
         this._pendingInvites.addPendingInvite({ discKeys: discoveryKeys, peerIDs: peerIDs })
     }
 
-    acceptInvite(peerID) {
+    acceptInvite(peerIDs) {
+        for (let peer of peerIDs) {
+
+        }
         this._setupReadstreamForPeerIDIfNeeded(peerID)
         this._peerPersistence.addPeer(peerID, false)
 
@@ -92,10 +95,10 @@ class Hyperchat extends EventEmitter {
         }
     }
 
-    sendMessageTo(peerID, content) {
-        this._feedsManager.getFeedLengthOf(peerID, length => {
-            let key = this._keychain.getKeyForPeerIDs([peerID])
-            this._potasium.createEncryptedMessage(content, length, key, message => {
+    sendMessageTo(peers, content) {
+        this._feedsManager.getLengthsOfFeeds(peers, keysAndLengths => {
+            let key = this._keychain.getKeyForPeerIDs(peers)
+            this._potasium.createEncryptedMessage(content, keysAndLengths, key, message => {
                 this._feed.append(message, err => {
                     if (err) throw err
                 })
@@ -172,7 +175,7 @@ class Hyperchat extends EventEmitter {
                             // Sender of challenge is always at head. Tail is other people in group.
                             let peerID = answer.peerIDs[0]
                             this._inviteStreams[peerID] = stream
-                            this.emit('invite', peerID)
+                            this.emit('invite', answer.peerIDs)
                         } else {
                             console.log("Protocol message received. Challenge failed")
                         }

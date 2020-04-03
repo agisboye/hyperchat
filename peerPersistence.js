@@ -64,10 +64,6 @@ class PeerPersistence {
         Private API
     */
 
-    _getPeer(id) {
-        return this._peers[id.toString('hex')]
-    }
-
     _loadPeers() {
         let peers;
 

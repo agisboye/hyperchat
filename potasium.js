@@ -21,12 +21,14 @@ class Potasium {
     }
 
     //TODO: Should be extended to allow for encrypted group messages
-    createEncryptedMessage(plaintext, otherSeq, key, cb) {
-        let internalMessage = this._wrapMessage(plaintext, otherSeq)
+    createEncryptedMessage(plaintext, otherSeqs, key, cb) {
+        let internalMessage = this._wrapMessage(plaintext, otherSeqs)
 
         let cipher = crypto.encryptMessage(JSON.stringify(internalMessage), key)
 
         let chatID = this.makeChatID(key, this.ownPeerID)
+
+        console.log("> createEncryptedMessage: key=", key.toString('hex').substring(0, 10))
 
         this._feed.head((err, head) => {
             let dict = (err) ? {} : head.data.dict
@@ -55,10 +57,10 @@ class Potasium {
         Private API
     */
 
-    _wrapMessage(plaintext, otherSeq) {
+    _wrapMessage(plaintext, otherSeqs) {
         return {
             ownSeq: this._feed.length + 1,
-            otherSeq: (otherSeq !== null) ? otherSeq : -1,
+            otherSeqs: otherSeqs,
             message: plaintext
         }
     }

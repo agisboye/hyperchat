@@ -2,28 +2,27 @@ const Hyperchat = require('./hyperchat')
 
 let knowsOtherPeerId = process.argv[3] !== undefined
 let name = process.argv[2]
+
+let peer1 = (process.argv[3]) ? Buffer.from(process.argv[3], 'hex') : null
+let peer2 = (process.argv[4]) ? Buffer.from(process.argv[4], 'hex') : null
+
+let peers = []
+if (peer1) peers.push(peer1)
+if (peer2) peers.push(peer2)
+
 let chat = new Hyperchat(name)
 
 chat.start()
 
 chat.on('ready', () => {
     if (knowsOtherPeerId) {
-        if (process.argv[4]) {
-            // we have 2 ids
-            let otherPeerId1 = Buffer.from(process.argv[3], 'hex')
-            let otherPeerid2 = Buffer.from(process.argv[4], 'hex')
-            chat.invite([otherPeerId1, otherPeerid2])
-        } else {
-            // we have 1 id
-            let otherPeerId1 = Buffer.from(process.argv[3], 'hex')
-            chat.invite([otherPeerId1])
-        }
+        chat.invite(peers)
     }
 })
 
-chat.on('invite', (peerID) => {
+chat.on('invite', (peerIDs) => {
     console.log("Accepting invite")
-    chat.acceptInvite(peerID)
+    chat.acceptInvite(peerIDs)
 })
 
 chat.on('decryptedMessage', (peerID, message) => {
@@ -40,14 +39,7 @@ process.stdin.on('data', data => {
     //console.log("peerIndex:", peerIndex)
     // let otherPeer = chat._identity.peers()[peerIndex]
 
-    let otherPeer = chat._peerPersistence.peers()[0]
-    if (!otherPeer) {
-        console.log("no peers known")
-        return
-    }
-
     let message = data.toString('utf-8')
-
-    chat.sendMessageTo(otherPeer, message)
+    chat.sendMessageTo(peers, message)
 })
 

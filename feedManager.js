@@ -15,36 +15,51 @@ class FeedManager {
     getFeed(peerID, cb) {
         let feedPublicKey = crypto.getFeedKeyFromPeerID(peerID)
 
-        if (feedPublicKey.equals(this._ownFeed.key)) {
-            cb(this._ownFeed)
-            return
-        }
+        if (feedPublicKey.equals(this._ownFeed.key)) return cb(this._ownFeed)
 
         let feedPublicKeyString = feedPublicKey.toString('hex')
         let feed = this._feeds[feedPublicKeyString]
 
-        if (feed) {
-            cb(feed)
-            return
-        }
+        if (feed) return cb(feed)
 
         this._addFeed(feedPublicKey, () => {
             cb(this._feeds[feedPublicKeyString])
         })
     }
 
-    getFeedLengthOf(peerID, cb) {
-        this.getFeed(peerID, (feed) => { cb(feed.length) })
+    getLengthsOfFeeds(peerIDs, cb) {
+        // We clone to avoid side effects of modifying peerIDs
+        let peerIDsClone = [...peerIDs]
+        return this._getLengthsOfFeeds(peerIDsClone, [], cb)
     }
 
-    _addFeed(feedPublicKey, completion) {
+    _getLengthsOfFeeds(peerIDs, keysAndLengths, cb) {
+        if (peerIDs.length === 0) return cb(keysAndLengths)
+
+        let head = peerIDs.shift()
+        this._getLengthOf(head, (res) => {
+            keysAndLengths.push(res)
+            this._getLengthsOfFeeds(peerIDs, keysAndLengths, cb)
+        })
+    }
+
+    _getLengthOf(peerID, cb) {
+        this.getFeed(peerID, (feed) => {
+            cb({
+                feedkey: feed.key.toString('hex'),
+                length: feed.length
+            })
+        })
+    }
+
+    _addFeed(feedPublicKey, cb) {
         let path = this._path + `${feedPublicKey.toString('hex')}`
         let feed = hypercore(path, feedPublicKey, { valueEncoding: 'json' })
 
         this._feeds[feedPublicKey.toString('hex')] = feed
 
         feed.ready(() => {
-            completion()
+            cb()
         })
     }
 }

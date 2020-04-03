@@ -26,18 +26,22 @@ class KeyChain {
         let hash = this._hashPeers(peerIDs)
         let key = this._keys[hash]
 
-        if (key) return Buffer.from(key, 'hex')
-
+        if (key) {
+            console.log(">keychain: key=", key.substring(0, 5))
+            return Buffer.from(key, 'hex')
+        }
         key = crypto.generateSymmetricKey()
         this._keys[hash] = key.toString('hex')
 
         this._saveKeyChain()
 
+        console.log("> keychain: key=", key.toString('hex').substring(0, 5))
         return key
     }
 
     saveKeyForPeerIDs(key, peerIDs) {
         let hash = this._hashPeers(peerIDs)
+        console.log("> keychain. Saving key=", key.toString('hex').substring(0, 5))
         this._keys[hash] = key.toString('hex')
         this._saveKeyChain()
     }
@@ -100,12 +104,13 @@ class KeyChain {
         let peerIDSet = new Set(peerIDs)
         peerIDSet.add(this._ownPeerID)
 
-        peerIDs = [... peerIDSet]
+        peerIDs = [...peerIDSet]
         // We need to sort the peers lexiographically because a 
         // DM between A and B is identical to a DM between B and A
         peerIDs.sort((p1, p2) => p1.localeCompare(p2))
         peerIDs = peerIDs.map((p) => Buffer.from(p, 'hex'))
 
+        this._printpeers(peerIDs)
         return crypto.hash(Buffer.concat(peerIDs)).toString('hex')
     }
 
@@ -114,6 +119,15 @@ class KeyChain {
             pk: Buffer.from(keypair.pk, 'hex'),
             sk: Buffer.from(keypair.sk, 'hex')
         }
+    }
+
+    _printpeers(peers) {
+        let str = "["
+        peers.forEach(p => {
+            str += p.toString('hex').substring(0, 5) + ", "
+        })
+        str += "]"
+        console.log('> keychain:', str)
     }
 }
 
