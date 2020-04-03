@@ -9,6 +9,7 @@ const FeedManager = require('./feedManager')
 const FeedMerger = require('./feedMerger')
 const OnlineIndicator = require('./onlineIndicator')
 const KeyChain = require('./keychain')
+const PendingInvites = require('./pendingInvites')
 
 const HYPERCHAT_EXTENSION = "hyperchat"
 const HYPERCHAT_PROTOCOL_INVITE = "invite"
@@ -25,8 +26,7 @@ class Hyperchat extends EventEmitter {
         // TODO: When someone starts replicating with us, remove them from the list of pending invites? 
         // Replicating with someone is how an invite is accepted.
         this._peerPersistence = new PeerPersistence(this._name)
-        //TODO: Only used for debugging purposes
-        this._pendingInvites = new Set()
+        this._pendingInvites = new PendingInvites()
         this._keychain = new KeyChain(this._name)
 
         // Streams from peers that have sent an invite which has not yet been accepted/rejected.
@@ -77,9 +77,8 @@ class Hyperchat extends EventEmitter {
 
             console.log("inviting", this._peerIDToString(peerDiscoveryKey))
             this._swarm.join(peerDiscoveryKey, { lookup: true, announce: true })
-            this._pendingInvites.add(peerDiscoveryKey)
         })
-        this._peerPersistence.addPendingInvite({ discKeys: discoveryKeys, peerIDs: peerIDs })
+        this._pendingInvites.addPendingInvite({ discKeys: discoveryKeys, peerIDs: peerIDs })
     }
 
     acceptInvite(peerID) {
@@ -189,7 +188,7 @@ class Hyperchat extends EventEmitter {
         // Send a challenge to the connecting peer
         // if we are trying to invite on this topic.
 
-        this._peerPersistence.getAllPendingInvitesMatchingTopics(details.topics)
+        this._pendingInvites.getAllPendingInvitesMatchingTopics(details.topics)
             .map(peerIDs => {
                 let key = this._keychain.getKeyForPeerIDs(peerIDs)
                 let challenges = peerIDs.map(peerID => this._potasium.generateChallenge(key, peerID, peerIDs))
@@ -204,22 +203,6 @@ class Hyperchat extends EventEmitter {
                     }
                 })
             })
-
-        // details.topics
-        //     .filter(t => this._pendingInvites.has(t))
-        //     .map(t => this._peerPersistence.getFirstPeerIDMatchingTopic(t))
-        //     .map(peerID => {
-        //         let key = this._keychain.getKeyForPeerIDs([peerID])
-        //         return this._potasium.generateChallenge(key, peerID, [])
-        //     })
-        //     .forEach(challenge => {
-        //         ext.send({
-        //             type: HYPERCHAT_PROTOCOL_INVITE,
-        //             data: {
-        //                 challenge: challenge.toString('hex')
-        //             }
-        //         })
-        //     })
 
         this._replicate(this._potasium.ownPeerID, stream)
         pump(stream, socket, stream)
