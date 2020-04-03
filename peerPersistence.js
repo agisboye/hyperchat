@@ -10,26 +10,19 @@ class PeerPersistence {
     }
 
     peers() {
-        return Object.keys(this._peers).map(k => {
-            let res = Buffer.from(k, 'hex')
-            return res
-        })
+        return [... this._peers].map(p => Buffer.from(p, 'hex'))
     }
 
     /// Adds peerID to known peers and returns feed public key for peerID
-    addPeer(peerID, isInitiator) {
+    addPeer(peerID) {
         // TODO: Should be no-op if we already know peer but right now we can change who is initiator.
-        this._peers[peerID.toString('hex')] = isInitiator
+        this._peers.add(peerID.toString('hex'))
         this._save()
         return this.getFeedPublicKeyFromPeerID(peerID)
     }
 
-    getAllKnownPeerIDs() {
-        return Object.keys(this._peers)
-    }
-
     knowsPeer(peerID) {
-        return this._peers[peerID.toString('hex')] !== undefined
+        return this._peers.has(peerID.toString('hex'))
     }
 
     //TODO: Refactor. It's stupid to just call crypto further down.
@@ -71,7 +64,7 @@ class PeerPersistence {
             peers = JSON.parse(fs.readFileSync(this._filepath))
         } catch { }
 
-        this._peers = peers || {}
+        this._peers = peers || new Set()
     }
 
     /// Save peers to disk
