@@ -48,6 +48,6 @@ process.stdin.on('data', data => {
 
     let message = data.toString('utf-8')
 
-    chat.sendMessageTo(otherPeer, message)
+    chat.sendMessage(otherPeer, message)
 })
 
