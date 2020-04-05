@@ -1,4 +1,4 @@
-const Hyperchat = require('./hyperchat')
+const { Hyperchat } = require('./hyperchat')
 
 let knowsOtherPeerId = process.argv[3] !== undefined
 let name = process.argv[2]

@@ -13,6 +13,13 @@ const KeyChain = require('./keychain')
 const HYPERCHAT_EXTENSION = "hyperchat"
 const HYPERCHAT_PROTOCOL_INVITE = "invite"
 
+
+const Events = {
+    READY: "ready",
+    INVITE: "invite",
+    PEERS_CHANGED: "peers_changed"
+}
+
 class Hyperchat extends EventEmitter {
 
     constructor(name) {
@@ -38,8 +45,10 @@ class Hyperchat extends EventEmitter {
 
         this._onlineIndicator = new OnlineIndicator(peer => {
             console.log(peer.substring(0, 10) + "... is online")
+            this.emit(Events.PEERS_CHANGED, this.peers())
         }, peer => {
             console.log(peer.substring(0, 10) + "... is offline")
+            this.emit(Events.PEERS_CHANGED, this.peers())
         })
         this._protocolKeyPair = Protocol.keyPair()
     }
@@ -55,16 +64,28 @@ class Hyperchat extends EventEmitter {
             this._joinPeers()
             this._setupReadStreams()
             this._swarm.on('connection', (socket, details) => this._onConnection(socket, details))
-            this.emit('ready')
+            this.emit(Events.READY)
         })
     }
 
-    stop() {
-        // TODO:
-        // this._swarm.leave()
-    }
+    /**
+     * Returns the users peer ID.
+     */
     me() {
         return this._potasium.ownPeerID
+    }
+
+    /**
+     * Returns an array of known peers as well as their current online status.
+     */
+    peers() {
+        let peers = Object.keys(this._peerPersistence._peers)
+        return peers.map(id => {
+            return {
+                id: id,
+                isOnline: this._onlineIndicator.isOnline(id)
+            }
+        })
     }
 
     invite(peerIDs) {
@@ -72,6 +93,7 @@ class Hyperchat extends EventEmitter {
         peerIDs.forEach(peer => {
             this._setupReadstreamForPeerIDIfNeeded(peer)
             let peerFeedKey = this._peerPersistence.addPeer(peer, true)
+            this.emit(Events.PEERS_CHANGED, this.peers())
             let peerDiscoveryKey = this._peerPersistence.getDiscoveryKeyFromFeedPublicKey(peerFeedKey)
             discoveryKeys.push(peerDiscoveryKey)
 
@@ -85,6 +107,7 @@ class Hyperchat extends EventEmitter {
     acceptInvite(peerID) {
         this._setupReadstreamForPeerIDIfNeeded(peerID)
         this._peerPersistence.addPeer(peerID, false)
+        this.emit(Events.PEERS_CHANGED, this.peers())
 
         let stream = this._inviteStreams[peerID]
         if (stream) {
@@ -173,7 +196,7 @@ class Hyperchat extends EventEmitter {
                             // Sender of challenge is always at head. Tail is other people in group.
                             let peerID = answer.peerIDs[0]
                             this._inviteStreams[peerID] = stream
-                            this.emit('invite', peerID)
+                            this.emit(Events.INVITE, peerID)
                         } else {
                             console.log("Protocol message received. Challenge failed")
                         }
@@ -275,4 +298,4 @@ class Hyperchat extends EventEmitter {
     }
 }
 
-module.exports = Hyperchat
+module.exports = { Hyperchat, Events }
