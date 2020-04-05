@@ -21,7 +21,7 @@ class KeyChain {
     }
 
     /// Returns secret key for DM with 'peerIDs'. 
-    /// If DM is new, a secret key is generated, saved, and returned. 
+    /// If thread is new, a secret key is generated, saved, and returned. 
     getKeyForPeerIDs(peerIDs) {
         let hash = this._hashPeers(peerIDs)
         let key = this._keys[hash]
@@ -101,9 +101,9 @@ class KeyChain {
         peerIDSet.add(this._ownPeerID)
 
         peerIDs = [... peerIDSet]
-        // We need to sort the peers lexiographically because a 
-        // DM between A and B is identical to a DM between B and A
-        peerIDs.sort((p1, p2) => p1.localeCompare(p2))
+        // Sort peers lexicographically to ensure we always get the same
+        // hash for the same set of peers.
+        peerIDs.sort((p1, p2) => p1.localeCompare(p2, 'en'))
         peerIDs = peerIDs.map((p) => Buffer.from(p, 'hex'))
 
         return crypto.hash(Buffer.concat(peerIDs)).toString('hex')
