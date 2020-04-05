@@ -25,9 +25,8 @@ chat.on('invite', (peerIDs) => {
     chat.acceptInvite(peerIDs)
 })
 
-chat.on('decryptedMessage', (peerID, message) => {
+chat.on('decryptedMessage', (message) => {
     console.log('--------')
-    console.log('> from:', peerID.toString('hex').substring(0, 10) + "...")
     console.log('> message:', message)
 })
 
@@ -40,6 +39,11 @@ process.stdin.on('data', data => {
     // let otherPeer = chat._identity.peers()[peerIndex]
 
     let message = data.toString('utf-8')
-    chat.sendMessageTo(peers, message)
+    if (peers.length === 0) {
+        let group = chat._peerPersistence.groups()[0]
+        chat.sendMessageTo(group, message)
+    } else {
+        chat.sendMessageTo(peers, message)
+    }
 })
 

@@ -12,8 +12,8 @@ class Potasium {
         Public API
     */
 
-    generateChallenge(key, receiverPeerID, otherPeerIDs) {
-        return crypto.generateChallenge(this._sk, this._pk, this.ownPeerID, receiverPeerID, otherPeerIDs, key)
+    generateChallenge(key, receiverPeerID, group) {
+        return crypto.generateChallenge(this._sk, this._pk, this.ownPeerID, receiverPeerID, group, key)
     }
 
     answerChallenge(ciphertext) {

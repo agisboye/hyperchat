@@ -27,10 +27,27 @@ class FeedManager {
         })
     }
 
+    getFeedsForGroup(group, cb) {
+        // We clone to avoid side effects of modifying groupKeys
+        // We remove duplicates
+        let groupClone = [... new Set(group)]
+        this._getFeedsForGroup(groupClone, [], cb)
+    }
+
+    _getFeedsForGroup(group, feeds, cb) {
+        if (group.length === 0) return cb(feeds)
+
+        let peerID = group.shift()
+        this.getFeed(peerID, feed => {
+            feeds.push(feed)
+            this._getFeedsForGroup(group, feeds, cb)
+        })
+    }
+
     getLengthsOfFeeds(peerIDs, cb) {
         // We clone to avoid side effects of modifying peerIDs
         let peerIDsClone = [...peerIDs]
-        return this._getLengthsOfFeeds(peerIDsClone, [], cb)
+        this._getLengthsOfFeeds(peerIDsClone, [], cb)
     }
 
     _getLengthsOfFeeds(peerIDs, keysAndLengths, cb) {

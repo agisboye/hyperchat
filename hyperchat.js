@@ -52,7 +52,7 @@ class Hyperchat extends EventEmitter {
             this._feedsManager = new FeedManager(this._path, this._feed)
             this._print()
             this._announceSelf()
-            this._joinPeers()
+            this._joinGroups()
             this._setupReadStreams()
             this._swarm.on('connection', (socket, details) => this._onConnection(socket, details))
             this.emit('ready')
@@ -67,37 +67,34 @@ class Hyperchat extends EventEmitter {
         return this._potasium.ownPeerID
     }
 
-    invite(peerIDs) {
-        let discoveryKeys = []
-        peerIDs.forEach(peer => {
-            this._setupReadstreamForPeerIDIfNeeded(peer)
-            let peerFeedKey = this._peerPersistence.addPeer(peer, true)
-            let peerDiscoveryKey = this._peerPersistence.getDiscoveryKeyFromFeedPublicKey(peerFeedKey)
-            discoveryKeys.push(peerDiscoveryKey)
-
-            console.log("inviting", this._peerIDToString(peerDiscoveryKey))
-            this._swarm.join(peerDiscoveryKey, { lookup: true, announce: true })
-        })
-        this._pendingInvites.addPendingInvite({ discKeys: discoveryKeys, peerIDs: peerIDs })
+    invite(group) {
+        group.push(this._potasium.ownPeerID)
+        this._setupReadstreamForGroupIfNeeded(group)
+        this._peerPersistence.addGroup(group)
+        console.log("inviting", this._groupToString(group))
+        this._joinGroup(group)
+        
+        let discoveryKeys = group.map(peer => this._peerPersistence.getDiscoveryKeyFromPeerID(peer))
+        
+        this._pendingInvites.addPendingInvite({ discKeys: discoveryKeys, peerIDs: group })
     }
 
-    acceptInvite(peerIDs) {
-        for (let peer of peerIDs) {
+    acceptInvite(group) {
+        this._setupReadstreamForGroupIfNeeded(group)
+        this._peerPersistence.addGroup(group)
 
-        }
-        this._setupReadstreamForPeerIDIfNeeded(peerID)
-        this._peerPersistence.addPeer(peerID, false)
-
-        let stream = this._inviteStreams[peerID]
-        if (stream) {
-            delete this._inviteStreams[peerID]
-            this._replicate(peerID, stream)
+        for (let peerID of group) {
+            let stream = this._inviteStreams[peerID]
+            if (stream) {
+                delete this._inviteStreams[peerID]
+                this._replicate(peerID, stream)
+            }
         }
     }
 
-    sendMessageTo(peers, content) {
-        this._feedsManager.getLengthsOfFeeds(peers, keysAndLengths => {
-            let key = this._keychain.getKeyForPeerIDs(peers)
+    sendMessageTo(group, content) {
+        this._feedsManager.getLengthsOfFeeds(group, keysAndLengths => {
+            let key = this._keychain.getKeyForGroup(group)
             this._potasium.createEncryptedMessage(content, keysAndLengths, key, message => {
                 this._feed.append(message, err => {
                     if (err) throw err
@@ -112,17 +109,22 @@ class Hyperchat extends EventEmitter {
         this._swarm.join(this._feed.discoveryKey, { lookup: true, announce: true })
     }
 
-    _joinPeers() {
-        for (let peer of this._peerPersistence.peers()) {
-            console.log(`Joining peer topic: ${this._peerIDToString(peer)}`)
-            let discoveryKey = this._peerPersistence.getDiscoveryKeyFromPeerID(peer)
-            this._swarm.join(discoveryKey, { lookup: true, announce: true })
-        }
+    _joinGroups() {
+        this._peerPersistence.groups().forEach(group => this._joinGroup(group))
+    }
+
+    _joinGroup(group) {
+        console.log(`Joining peer topics: ${this._groupToString(group)}`)
+        group.forEach(peer => {
+            let peerFeedKey = this._peerPersistence.getFeedPublicKeyFromPeerID(peer)
+            let peerDiscoveryKey = this._peerPersistence.getDiscoveryKeyFromFeedPublicKey(peerFeedKey)
+            this._swarm.join(peerDiscoveryKey, { lookup: true, announce: true })
+        })
     }
 
     _setupReadStreams() {
-        for (let peer of this._peerPersistence.peers()) {
-            this._setupReadStreamFor(peer)
+        for (let group of this._peerPersistence.groups()) {
+            this._setupReadStreamFor(group)
         }
     }
 
@@ -193,7 +195,7 @@ class Hyperchat extends EventEmitter {
 
         this._pendingInvites.getAllPendingInvitesMatchingTopics(details.topics)
             .map(peerIDs => {
-                let key = this._keychain.getKeyForPeerIDs(peerIDs)
+                let key = this._keychain.getKeyForGroup(peerIDs)
                 let challenges = peerIDs.map(peerID => this._potasium.generateChallenge(key, peerID, peerIDs))
                 return challenges
             })
@@ -217,32 +219,31 @@ class Hyperchat extends EventEmitter {
         })
     }
 
-    _setupReadstreamForPeerIDIfNeeded(peerID) {
-        if (this._peerPersistence.knowsPeer(peerID)) return
-        this._setupReadStreamFor(peerID)
+    _setupReadstreamForGroupIfNeeded(group) {
+        if (this._peerPersistence.knowsGroup(group)) return // The readstream is already setup
+        this._setupReadStreamFor(group)
     }
 
-    async _setupReadStreamFor(otherPeerID) {
-        console.log("Setting up readstream for", this._peerIDToString(otherPeerID))
-        let otherFeedPublicKey = this._peerPersistence.getFeedPublicKeyFromPeerID(otherPeerID)
-        let key = this._keychain.getKeyForPeerIDs([otherPeerID])
-        this._feedsManager.getFeed(otherFeedPublicKey, async otherFeed => {
-            let merged = new FeedMerger(this._potasium, key, otherFeed, this._feed, otherPeerID)
+    async _setupReadStreamFor(group) {
+        console.log("Setting up readstream for", this._groupToString(group))
+
+        let key = this._keychain.getKeyForGroup(group)
+        this._feedsManager.getFeedsForGroup(group, async feeds => {
+            let merged = new FeedMerger(this._potasium, key, feeds, group)
 
             for (let i = 0; i < merged.length; i++) {
                 let res = await merged.getPrevAsync()
                 if (res) {
-                    this.emit('decryptedMessage', otherPeerID, res)
+                    this.emit('decryptedMessage', res)
                 } else {
                     break
                 }
             }
 
             merged.on('data', message => {
-                this.emit('decryptedMessage', otherPeerID, message)
+                this.emit('decryptedMessage', message)
             })
         })
-
     }
 
     _print() {
@@ -258,6 +259,15 @@ class Hyperchat extends EventEmitter {
 
     _peerIDToString(peerID) {
         return peerID.toString('hex').substring(0, 10) + "..."
+    }
+
+    _groupToString(group) {
+        let str = "["
+        group.forEach(peerID => {
+            str += peerID.toString('hex').substring(0, 6) + ".. ,"
+        })
+        str += "]"
+        return str
     }
 }
 

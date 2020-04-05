@@ -118,14 +118,16 @@ function decryptMessage(nonceAndCipher, key) {
     }
 }
 
-function generateChallenge(ownSecretKey, ownPublicKey, ownPeerID, receiverPeerID, otherPeerIDs, key) {
+function generateChallenge(ownSecretKey, ownPublicKey, ownPeerID, receiverPeerID, group, key) {
     let receiverPublicKey = getPublicKeyFromPeerID(receiverPeerID)
 
     let nonce = generateNonce()
     let { _, tx } = _generateClientKeys(ownPublicKey, ownSecretKey, receiverPublicKey)
     let proof = _createChallengeProof(nonce, tx)
 
-    let peerIDs = [ownPeerID].concat(otherPeerIDs).map(peerID => peerID.toString('hex'))
+    // Put sender at head of 'peerIDs' by removing it from 'group' and prepending it again. 
+    group = group.filter(peerID => !peerID.equals(ownPeerID))
+    let peerIDs = [ownPeerID].concat(group).map(peerID => peerID.toString('hex'))
 
     let message = {
         peerIDs: peerIDs,

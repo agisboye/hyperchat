@@ -1,7 +1,7 @@
 const { EventEmitter } = require('events')
 
 class ReverseFeedStream extends EventEmitter {
-    constructor(ownPotasium, feed, key, otherPeerID) {
+    constructor(ownPotasium, feed, key, group) {
         super()
         this._feed = feed
         this._relevantIndex = feed.length - 1 // start at head index
@@ -9,7 +9,7 @@ class ReverseFeedStream extends EventEmitter {
         this._key = key
         this._isOwnFeed = feed.writable
         this.length = feed.length
-        this._peerID = this._isOwnFeed ? this._potasium.ownPeerID : otherPeerID
+        this._peerID = this._isOwnFeed ? this._potasium.ownPeerID : group[0]
         this._chatID = this._potasium.makeChatID(this._key, this._peerID).toString('hex')
         this._setupHandlers()
     }

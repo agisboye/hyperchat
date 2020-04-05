@@ -15,6 +15,8 @@ class KeyChain {
         this._loadKeyChain()
     }
 
+    // TODO: This is error-prone. Refactor the creation of peerIDs from potasium 
+    // such that this setter can be done in initialiser of KeyChain. 
     setOwnPeerID(id) {
         // Invariant: ownPeerID is always added to all 'peerIDs'
         this._ownPeerID = id.toString('hex')
@@ -22,8 +24,8 @@ class KeyChain {
 
     /// Returns secret key for DM with 'peerIDs'. 
     /// If DM is new, a secret key is generated, saved, and returned. 
-    getKeyForPeerIDs(peerIDs) {
-        let hash = this._hashPeers(peerIDs)
+    getKeyForGroup(group) {
+        let hash = this._hashGroup(group)
         let key = this._keys[hash]
 
         if (key) {
@@ -40,7 +42,7 @@ class KeyChain {
     }
 
     saveKeyForPeerIDs(key, peerIDs) {
-        let hash = this._hashPeers(peerIDs)
+        let hash = this._hashGroup(peerIDs)
         console.log("> keychain. Saving key=", key.toString('hex').substring(0, 5))
         this._keys[hash] = key.toString('hex')
         this._saveKeyChain()
@@ -98,20 +100,20 @@ class KeyChain {
         fs.writeFileSync(this._masterKeysFilePath, obj)
     }
 
-    _hashPeers(peerIDs) {
+    _hashGroup(group) {
         // Ensure that own peer ID is part of 'peerIDs'
-        peerIDs = peerIDs.map(p => p.toString('hex'))
-        let peerIDSet = new Set(peerIDs)
+        group = group.map(p => p.toString('hex'))
+        let peerIDSet = new Set(group)
         peerIDSet.add(this._ownPeerID)
 
-        peerIDs = [...peerIDSet]
+        group = [...peerIDSet]
         // We need to sort the peers lexiographically because a 
         // DM between A and B is identical to a DM between B and A
-        peerIDs.sort((p1, p2) => p1.localeCompare(p2))
-        peerIDs = peerIDs.map((p) => Buffer.from(p, 'hex'))
+        group.sort((p1, p2) => p1.localeCompare(p2))
+        group = group.map((p) => Buffer.from(p, 'hex'))
 
-        this._printpeers(peerIDs)
-        return crypto.hash(Buffer.concat(peerIDs)).toString('hex')
+        this._printpeers(group)
+        return crypto.hash(Buffer.concat(group)).toString('hex')
     }
 
     _hexKeypairToBuffers(keypair) {

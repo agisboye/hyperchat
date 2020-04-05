@@ -4,25 +4,48 @@ const fs = require('fs')
 class PeerPersistence {
 
     constructor(name) {
-        this._filepath = "./persistence/peers" + name + ".json"
-        // load peers from disc
-        this._loadPeers()
+        this._filepath = "./persistence/groups" + name + ".json"
+        // load groups from disc
+        this._loadGroups()
     }
 
-    peers() {
-        return [... this._peers].map(p => Buffer.from(p, 'hex'))
+    groups() {
+        return this._groups.map(group => group.map(peer => Buffer.from(peer, 'hex')))
     }
 
-    /// Adds peerID to known peers and returns feed public key for peerID
-    addPeer(peerID) {
-        // TODO: Should be no-op if we already know peer but right now we can change who is initiator.
-        this._peers.add(peerID.toString('hex'))
+    // Ensures that each group is converted to strings + sorted lexiographically before adding it
+    addGroup(group) {
+        if (this.knowsGroup(group)) return
+        let convertedGroup = this._convert(group)
+        this._groups.push(convertedGroup)
         this._save()
-        return this.getFeedPublicKeyFromPeerID(peerID)
     }
 
-    knowsPeer(peerID) {
-        return this._peers.has(peerID.toString('hex'))
+    _convert(group) {
+        // Make a copy to avoid side effects
+        let res = [...group]
+        // We convert peers to strings, remove duplicates 
+        // and sort lexiographically before adding the group.
+        res = res.map(p => p.toString('hex'))
+        res = [... new Set(res)]
+        res.sort((p1, p2) => p1.localeCompare(p2))
+
+        return res
+    }
+
+    knowsGroup(group) {
+        let converted = this._convert(group)
+        return this._groups.find(group => this._equal(group, converted)) !== undefined
+    }
+
+    /// Pre: Both groups are lexiographically sorted
+    _equal(group1, group2) {
+        if (group1.length !== group2.length) return false
+
+        for (var i = 0; i < group1.length; i++) {
+            if (group1[i] !== group2[i]) return false
+        }
+        return true
     }
 
     //TODO: Refactor. It's stupid to just call crypto further down.
@@ -47,29 +70,32 @@ class PeerPersistence {
 
     // TODO: This is a really shitty solution....... Find a better one
     getFirstPeerIDMatchingTopic(topic) {
-        return this.peers().find(peerID => {
-            let discoveryKey = this.getDiscoveryKeyFromPeerID(peerID)
-            return discoveryKey.equals(topic)
-        })
+        for (let group of this.groups()) {
+            for (let peerID of group) {
+                let discoveryKey = this.getDiscoveryKeyFromPeerID(peerID)
+                if (discoveryKey.equals(topic)) return peerID
+            }
+        }
+        return null
     }
 
     /*
         Private API
     */
 
-    _loadPeers() {
-        let peers;
+    _loadGroups() {
+        let groups;
 
         try {
-            peers = JSON.parse(fs.readFileSync(this._filepath))
+            groups = JSON.parse(fs.readFileSync(this._filepath))
         } catch { }
 
-        this._peers = peers || new Set()
+        this._groups = groups || []
     }
 
-    /// Save peers to disk
+    /// Save groups to disk
     _save() {
-        fs.writeFileSync(this._filepath, JSON.stringify(this._peers))
+        fs.writeFileSync(this._filepath, JSON.stringify(this._groups))
     }
 }
 
