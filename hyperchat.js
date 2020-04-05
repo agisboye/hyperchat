@@ -234,22 +234,6 @@ class Hyperchat extends EventEmitter {
                 })
             })
 
-        // details.topics
-        //     .filter(t => this._pendingInvites.has(t))
-        //     .map(t => this._peerPersistence.getFirstPeerIDMatchingTopic(t))
-        //     .map(peerID => {
-        //         let key = this._keychain.getKeyForPeerIDs([peerID])
-        //         return this._potasium.generateChallenge(key, peerID, [])
-        //     })
-        //     .forEach(challenge => {
-        //         ext.send({
-        //             type: HYPERCHAT_PROTOCOL_INVITE,
-        //             data: {
-        //                 challenge: challenge.toString('hex')
-        //             }
-        //         })
-        //     })
-
         this._replicate(this._potasium.ownPeerID, stream)
         pump(stream, socket, stream)
     }
