@@ -62,7 +62,6 @@ class Hyperchat extends EventEmitter {
             this._print()
             this._announceSelf()
             this._joinPeers()
-            this._setupReadStreams()
             this._swarm.on('connection', (socket, details) => this._onConnection(socket, details))
             this.emit(Events.READY)
         })
@@ -91,7 +90,6 @@ class Hyperchat extends EventEmitter {
     invite(peerIDs) {
         let discoveryKeys = []
         peerIDs.forEach(peer => {
-            this._setupReadstreamForPeerIDIfNeeded(peer)
             let peerFeedKey = this._peerPersistence.addPeer(peer, true)
             this.emit(Events.PEERS_CHANGED, this.peers())
             let peerDiscoveryKey = this._peerPersistence.getDiscoveryKeyFromFeedPublicKey(peerFeedKey)
@@ -105,7 +103,6 @@ class Hyperchat extends EventEmitter {
     }
 
     acceptInvite(peerID) {
-        this._setupReadstreamForPeerIDIfNeeded(peerID)
         this._peerPersistence.addPeer(peerID, false)
         this.emit(Events.PEERS_CHANGED, this.peers())
 
@@ -127,6 +124,21 @@ class Hyperchat extends EventEmitter {
         })
     }
 
+    /**
+     * Sets up a read stream that contains all messages
+     * for a given chat.
+     * @param {*} peerID 
+     */
+    getReadStream(peerID, callback) {
+        let otherFeedPublicKey = this._peerPersistence.getFeedPublicKeyFromPeerID(peerID)
+        let key = this._keychain.getKeyForPeerIDs([peerID])
+        
+        this._feedsManager.getFeed(otherFeedPublicKey, feed => {
+            let merged = new FeedMerger(this._potasium, key, feed, this._feed, peerID)
+            callback(null, merged)
+        })
+    }
+
     /** Private API **/
     _announceSelf() {
         console.log("Announcing self:", this._peerIDToString(this._feed.discoveryKey))
@@ -138,12 +150,6 @@ class Hyperchat extends EventEmitter {
             console.log(`Joining peer topic: ${this._peerIDToString(peer)}`)
             let discoveryKey = this._peerPersistence.getDiscoveryKeyFromPeerID(peer)
             this._swarm.join(discoveryKey, { lookup: true, announce: true })
-        }
-    }
-
-    _setupReadStreams() {
-        for (let peer of this._peerPersistence.peers()) {
-            this._setupReadStreamFor(peer)
         }
     }
 
@@ -252,34 +258,6 @@ class Hyperchat extends EventEmitter {
         this._feedsManager.getFeed(peerID, feed => {
             feed.replicate(stream, { live: true })
         })
-    }
-
-    _setupReadstreamForPeerIDIfNeeded(peerID) {
-        if (this._peerPersistence.knowsPeer(peerID)) return
-        this._setupReadStreamFor(peerID)
-    }
-
-    async _setupReadStreamFor(otherPeerID) {
-        console.log("Setting up readstream for", this._peerIDToString(otherPeerID))
-        let otherFeedPublicKey = this._peerPersistence.getFeedPublicKeyFromPeerID(otherPeerID)
-        let key = this._keychain.getKeyForPeerIDs([otherPeerID])
-        this._feedsManager.getFeed(otherFeedPublicKey, async otherFeed => {
-            let merged = new FeedMerger(this._potasium, key, otherFeed, this._feed, otherPeerID)
-
-            for (let i = 0; i < merged.length; i++) {
-                let res = await merged.getPrevAsync()
-                if (res) {
-                    this.emit('decryptedMessage', otherPeerID, res)
-                } else {
-                    break
-                }
-            }
-
-            merged.on('data', message => {
-                this.emit('decryptedMessage', otherPeerID, message)
-            })
-        })
-
     }
 
     _print() {
