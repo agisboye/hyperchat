@@ -26,7 +26,7 @@ class Potasium {
 
         let cipher = crypto.encryptMessage(JSON.stringify(internalMessage), key)
 
-        let chatID = this.makeChatID(key, this.ownPeerID)
+        let chatID = this.makeChatID(key, this._feed.key)
 
         console.log("> createEncryptedMessage: key=", key.toString('hex').substring(0, 10))
 
@@ -43,8 +43,8 @@ class Potasium {
         })
     }
 
-    makeChatID(key, senderPeerID) {
-        return crypto.makeChatID(key, senderPeerID).toString('hex')
+    makeChatID(key, senderFeedKey) {
+        return crypto.makeChatID(key, senderFeedKey).toString('hex')
     }
 
     //TODO: How do we obtain all other peerIDs in the group only from 'peerID'? We need some kind of map here.

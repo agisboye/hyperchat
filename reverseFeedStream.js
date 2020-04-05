@@ -9,8 +9,7 @@ class ReverseFeedStream extends EventEmitter {
         this._key = key
         this._isOwnFeed = feed.writable
         this.length = feed.length
-        this._peerID = this._isOwnFeed ? this._potasium.ownPeerID : group[0]
-        this._chatID = this._potasium.makeChatID(this._key, this._peerID).toString('hex')
+        this._chatID = this._potasium.makeChatID(key, feed.key).toString('hex')
         this._setupHandlers()
     }
 

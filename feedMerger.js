@@ -7,7 +7,7 @@ class FeedMerger extends EventEmitter {
         super()
         this._streams = feeds.map(feed => new ReverseFeedStream(potasium, feed, key, group))
         // TODO: Remove length. Doesnt make sense to use in hyperchat.
-        this.length = this._streams.reduce((accu, current) => accu + current)
+        this.length = this._streams.reduce((accu, stream) => accu + stream.length, 0)
         this._streams.forEach(stream => stream.on('data', data => this._handleData(data)))
 
         this._promisifiedGetPrev = promisify(this._getPrev).bind(this);

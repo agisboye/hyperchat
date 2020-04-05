@@ -162,10 +162,10 @@ function answerChallenge(ciphertext, ownSecretKey, ownPublicKey) {
     return null
 }
 
-/// returns hash(key || peerID)
-function makeChatID(key, senderPeerID) {
+/// returns hash(key || sender feed key)
+function makeChatID(key, senderFeedKey) {
     let output = Buffer.alloc(sodium.crypto_generichash_BYTES_MAX)
-    sodium.crypto_generichash(output, Buffer.concat([key, senderPeerID]))
+    sodium.crypto_generichash(output, Buffer.concat([key, senderFeedKey]))
     return output
 }
 
