@@ -67,10 +67,7 @@ class PeerPersistence {
 
 
     peers() {
-        return Object.keys(this._peers).map(k => {
-            let res = Buffer.from(k, 'hex')
-            return res
-        })
+        return Object.keys(this._peers).map(k => Buffer.from(k, 'hex'))
     }
 
     /// Adds peerID to known peers and returns feed public key for peerID
