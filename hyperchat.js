@@ -44,10 +44,10 @@ class Hyperchat extends EventEmitter {
         this.sendIdentityProofs = true
 
         this._onlineIndicator = new OnlineIndicator(peer => {
-            console.log(peer.substring(0, 10) + "... is online")
+            console.log(this._ellipticizeBuffer(peer) + "... is online")
             this.emit(Events.PEERS_CHANGED, this.peers())
         }, peer => {
-            console.log(peer.substring(0, 10) + "... is offline")
+            console.log(this._ellipticizeBuffer(peer) + "... is offline")
             this.emit(Events.PEERS_CHANGED, this.peers())
         })
         this._protocolKeyPair = Protocol.keyPair()
@@ -95,7 +95,7 @@ class Hyperchat extends EventEmitter {
             let peerDiscoveryKey = this._peerPersistence.getDiscoveryKeyFromFeedPublicKey(peerFeedKey)
             discoveryKeys.push(peerDiscoveryKey)
 
-            console.log("inviting", this._peerIDToString(peerDiscoveryKey))
+            console.log("inviting", this._ellipticizeBuffer(peerDiscoveryKey))
             this._swarm.join(peerDiscoveryKey, { lookup: true, announce: true })
             this._pendingInvites.add(peerDiscoveryKey)
         })
@@ -141,13 +141,13 @@ class Hyperchat extends EventEmitter {
 
     /** Private API **/
     _announceSelf() {
-        console.log("Announcing self:", this._peerIDToString(this._feed.discoveryKey))
+        console.log("Announcing self:", this._ellipticizeBuffer(this._feed.discoveryKey))
         this._swarm.join(this._feed.discoveryKey, { lookup: true, announce: true })
     }
 
     _joinPeers() {
         for (let peer of this._peerPersistence.peers()) {
-            console.log(`Joining peer topic: ${this._peerIDToString(peer)}`)
+            console.log(`Joining peer topic: ${this._ellipticizeBuffer(peer)}`)
             let discoveryKey = this._peerPersistence.getDiscoveryKeyFromPeerID(peer)
             this._swarm.join(discoveryKey, { lookup: true, announce: true })
         }
@@ -248,16 +248,23 @@ class Hyperchat extends EventEmitter {
         console.log('------------------------')
         console.log('> status [hex notation]:')
         console.log("> Peer ID:", this._potasium.ownPeerID.toString('hex'))
-        console.log('> feedkey =', this._feed.key.toString('hex').substring(0, 10) + "...")
-        console.log('> disckey =', this._feed.discoveryKey.toString('hex').substring(0, 10) + "...")
-        console.log('> public  =', this._keychain.masterKeys.pk.toString('hex').substring(0, 10) + "...")
-        console.log('> secret  =', this._keychain.masterKeys.sk.toString('hex').substring(0, 10) + "...")
+        console.log('> feedkey =', this._ellipticizeBuffer(this._feed.key))
+        console.log('> disckey =', this._ellipticizeBuffer(this._feed.discoveryKey))
+        console.log('> public  =', this._ellipticizeBuffer(this._keychain.masterKeys.pk))
+        console.log('> secret  =', this._ellipticizeBuffer(this._keychain.masterKeys.sk))
         console.log('------------------------')
     }
 
-    _peerIDToString(peerID) {
-        return peerID.toString('hex').substring(0, 10) + "..."
+    /**
+     * Takes a buffer and returns the head followed by an ellipsis.
+     * @param {Buffer} buffer 
+     * @param {number} length
+     * @returns {string}
+     */
+    _ellipticizeBuffer(buffer, length = 10) {
+        return buffer.toString('hex').substring(0, length) + "..."
     }
+
 }
 
 module.exports = { Hyperchat, Events }
