@@ -21,33 +21,66 @@ class FeedMerger extends EventEmitter {
         }
     }
 
+    // _getAllPrevs(cb) {
+    //     function _getAllPrevsInternal(streams, res, cb) {
+    //         if (streams.length === 0) return cb(res)
+
+    //         let stream = streams.shift()
+    //         stream.getPrev((err, prev) => {
+    //             if (!err) res.push({ stream, prev })
+    //             _getAllPrevsInternal(streams, res, cb)
+    //         })
+    //     }
+
+    //     let streamClone = [... this._streams]
+    //     _getAllPrevsInternal(streamClone, [], cb)
+    // }
+
+    _getAllPrevs2(cb) {
+        this._getAllPrevsInternal2(0, [], cb)
+    }
+
+    _getAllPrevsInternal2(index, res, cb) {
+        if (this._streams.length === index) return cb(res)
+
+        let stream = this._streams[index]
+        stream.getPrev((err, prev) => {
+            res.push({ stream, err, prev })
+            index++
+            this._getAllPrevsInternal2(index, res, cb)
+        })
+    }
+
     _getPrev(cb) {
-        this._leftStream.getPrev((leftError, left) => {
-            this._rightStream.getPrev((rightError, right) => {
+        this._getAllPrevs2(streamsAndPrevs => {
+            let leftStream = streamsAndPrevs[0].stream
+            let rightStream = streamsAndPrevs[1].stream
+            let left = streamsAndPrevs[0].prev || null
+            let right = streamsAndPrevs[1].prev || null
 
-                // both feeds are empty
-                if (leftError && rightError) return cb(new Error("both streams are empty"), null)
-                // left feed is empty. 
-                if (left === null) return cb(null, this._removeUnusedMetaData(right))
-                // feed B is empty
-                if (right === null) {
-                    let res = this._removeUnusedMetaData(left)
-                    return cb(null, res)
-                }
-                let res = this._compare(left, right)
+            if (left === null && right === null) return cb(new Error("both streams are empty"), null)
+            // left feed is empty. 
+            if (left === null) return cb(null, this._removeUnusedMetaData(right))
+            // feed B is empty
+            if (right === null) return cb(null, this._removeUnusedMetaData(left))
 
-                // save right/left for next round
-                if (res === 1) {
-                    this._rightStream.saveUnused(right)
-                } else if (res === -1) {
-                    this._leftStream.saveUnused(left)
-                } else {
-                    //TODO: handle collision
-                    throw new Error("COLLISION DETECTED. NOT HANDLED YET")
-                }
+            // NOTE: ENTERING HACKY-ZONE!  
+            left.otherSeq = left.otherSeqs[0].length
+            right.otherSeq = right.otherSeqs[0].length
+            // LEAVING HACKY ZONE
 
-                (res === 1) ? cb(null, this._removeUnusedMetaData(left)) : cb(null, this._removeUnusedMetaData(right))
-            })
+            let res = this._compare2(left, right)
+            // save right/left for next round
+            if (res === 1) {
+                rightStream.saveUnused(right)
+            } else if (res === -1) {
+                leftStream.saveUnused(left)
+            } else {
+                //TODO: handle collision
+                throw new Error("COLLISION DETECTED. NOT HANDLED YET")
+            }
+
+            (res === 1) ? cb(null, this._removeUnusedMetaData(left)) : cb(null, this._removeUnusedMetaData(right))
         })
     }
 
@@ -58,7 +91,7 @@ class FeedMerger extends EventEmitter {
     /// a comes before b: return 1
     /// b comes before a: return -1
     /// a, b not comparable: return 0
-    _compare(a, b) {
+    _compare2(a, b) {
         if (a.ownSeq > b.otherSeq && (b.ownSeq > a.otherSeq)) return 0
 
         if (a.ownSeq > b.otherSeq) return 1

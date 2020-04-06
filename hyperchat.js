@@ -93,6 +93,7 @@ class Hyperchat extends EventEmitter {
     }
 
     sendMessageTo(group, content) {
+        //TODO: Do we need both feed keys and lenghts or just the lenghts?
         this._feedsManager.getLengthsOfFeeds(group, keysAndLengths => {
             let key = this._keychain.getKeyForGroup(group)
             this._potasium.createEncryptedMessage(content, keysAndLengths, key, message => {

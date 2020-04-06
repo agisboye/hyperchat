@@ -20,9 +20,11 @@ class Potasium {
         return crypto.answerChallenge(ciphertext, this._sk, this._pk)
     }
 
-    //TODO: Should be extended to allow for encrypted group messages
-    createEncryptedMessage(plaintext, otherSeqs, key, cb) {
-        let internalMessage = this._wrapMessage(plaintext, otherSeqs)
+    createEncryptedMessage(plaintext, feedkeysAndLenghts, key, cb) {
+        // Remove own feed key and length from 'feedkeysAndLenghts'
+        feedkeysAndLenghts = feedkeysAndLenghts.filter(({ feedkey, length }) => !Buffer.from(feedkey, 'hex').equals(this._feed.key))
+
+        let internalMessage = this._wrapMessage(plaintext, feedkeysAndLenghts)
 
         let cipher = crypto.encryptMessage(JSON.stringify(internalMessage), key)
 
