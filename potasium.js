@@ -20,11 +20,11 @@ class Potasium {
         return crypto.answerChallenge(ciphertext, this._sk, this._pk)
     }
 
-    createEncryptedMessage(plaintext, feedkeysAndLenghts, key, cb) {
-        // Remove own feed key and length from 'feedkeysAndLenghts'
-        feedkeysAndLenghts = feedkeysAndLenghts.filter(({ feedkey, length }) => !Buffer.from(feedkey, 'hex').equals(this._feed.key))
-
-        let internalMessage = this._wrapMessage(plaintext, feedkeysAndLenghts)
+    createEncryptedMessage(plaintext, vector, key, cb) {
+        let internalMessage = {
+            vector: vector, 
+            message: plaintext
+        }
 
         let cipher = crypto.encryptMessage(JSON.stringify(internalMessage), key)
 
@@ -58,14 +58,6 @@ class Potasium {
     /*
         Private API
     */
-
-    _wrapMessage(plaintext, otherSeqs) {
-        return {
-            ownSeq: this._feed.length + 1,
-            otherSeqs: otherSeqs,
-            message: plaintext
-        }
-    }
 }
 
 module.exports = Potasium

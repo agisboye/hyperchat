@@ -51,13 +51,18 @@ class FeedManager {
     }
 
     _getLengthsOfFeeds(peerIDs, keysAndLengths, cb) {
-        if (peerIDs.length === 0) return cb(keysAndLengths)
+        if (peerIDs.length === 0) return cb(this._sortLengthsByKeys(keysAndLengths))
 
         let head = peerIDs.shift()
         this._getLengthOf(head, (res) => {
             keysAndLengths.push(res)
             this._getLengthsOfFeeds(peerIDs, keysAndLengths, cb)
         })
+    }
+
+    _sortLengthsByKeys(keysAndLengths) {
+        keysAndLengths.sort((a, b) => a.feedkey.localeCompare(b.feedkey))
+        return keysAndLengths.map(({feedkey, length}) => length)
     }
 
     _getLengthOf(peerID, cb) {

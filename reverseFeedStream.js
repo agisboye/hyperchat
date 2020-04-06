@@ -3,7 +3,7 @@ const { EventEmitter } = require('events')
 class ReverseFeedStream extends EventEmitter {
     constructor(ownPotasium, feed, key, group) {
         super()
-        this._feed = feed
+        this.feed = feed
         this._relevantIndex = feed.length - 1 // start at head index
         this._potasium = ownPotasium
         this._key = key
@@ -14,16 +14,11 @@ class ReverseFeedStream extends EventEmitter {
     }
 
     getPrev(cb) {
-        if (this._unused) {
-            let res = this._unused
-            this._unused = null
-            return cb(null, res)
-        }
         if (this._relevantIndex < 0 || this._relevantIndex === undefined) return cb(new Error("end of stream"), null)
 
-        if (this._relevantIndex === this._feed.length - 1) {
+        if (this._relevantIndex === this.feed.length - 1) {
             // Base case: We need to find the index of the first message relevant for us.
-            this._feed.head((err, head) => {
+            this.feed.head((err, head) => {
                 if (err) return cb(new Error("no head found"), null)
 
                 this._relevantIndex = head.data.dict[this._chatID]
@@ -36,19 +31,15 @@ class ReverseFeedStream extends EventEmitter {
         }
     }
 
-    saveUnused(value) {
-        this._unused = value
-    }
-
     _getDecryptedMessageOfRelevantIndex(cb) {
         if (this._relevantIndex < 0 || this._relevantIndex === undefined) return cb(new Error("end of stream"), null)
 
-        this._feed.get(this._relevantIndex, (err, currentMessage) => {
+        this.feed.get(this._relevantIndex, (err, currentMessage) => {
             if (err) return cb(err, null)
 
             if (this._relevantIndex) {
                 // A next message still exists. Update relevant index for next iteration (invariant)
-                this._feed.get(this._relevantIndex - 1, (err, nextMessage) => {
+                this.feed.get(this._relevantIndex - 1, (err, nextMessage) => {
                     if (err) return cb(err, null)
 
                     this._relevantIndex = nextMessage.data.dict[this._chatID]
@@ -74,9 +65,9 @@ class ReverseFeedStream extends EventEmitter {
 
     _setupHandlers() {
         if (this._isOwnFeed) {
-            this._feed.on('append', () => this._onOwnFeedAppendHandler())
+            this.feed.on('append', () => this._onOwnFeedAppendHandler())
         } else {
-            this._feed.on('download', (index, data) => this._onOtherFeedDownloadHandler(index, data))
+            this.feed.on('download', (index, data) => this._onOtherFeedDownloadHandler(index, data))
         }
     }
 
@@ -94,7 +85,7 @@ class ReverseFeedStream extends EventEmitter {
     }
 
     _onOwnFeedAppendHandler() {
-        this._feed.head((err, message) => {
+        this.feed.head((err, message) => {
             if (err) throw err
             let decrypted = this._decryptAndAddMetaData(message.data.ciphertext)
 
