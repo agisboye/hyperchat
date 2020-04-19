@@ -1,9 +1,10 @@
 const { EventEmitter } = require('events')
 
 class ReverseFeedStream extends EventEmitter {
-    constructor(ownPotasium, feed, key, group) {
+    constructor(ownPotasium, feed, peerID, key) {
         super()
         this.feed = feed
+        this._peerID = peerID
         this._relevantIndex = feed.length - 1 // start at head index
         this._potasium = ownPotasium
         this._key = key
@@ -95,16 +96,11 @@ class ReverseFeedStream extends EventEmitter {
         })
     }
 
-    _addMetaDataToDecryptedMessage(message) {
-        let sender = this._isOwnFeed ? "self" : "other"
-        message['sender'] = sender
-        return message
-    }
-
     _decryptAndAddMetaData(ciphertext) {
         let decrypted = this._potasium.decryptMessageUsingKey(Buffer.from(ciphertext, 'hex'), this._key)
         if (decrypted) {
-            return this._addMetaDataToDecryptedMessage(decrypted)
+            decrypted['sender'] = this._peerID.toString('hex').substring(0, 5) + "..."
+            return decrypted
         } else {
             return null
         }

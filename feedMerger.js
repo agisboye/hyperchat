@@ -4,9 +4,9 @@ const ReverseFeedStream = require('./reverseFeedStream')
 const vectorClock = require('./vectorClock')
 
 class FeedMerger extends EventEmitter {
-    constructor(potasium, key, feeds, group) {
+    constructor(potasium, key, feedsByPeers) {
         super()
-        this._streams = feeds.map(feed => new ReverseFeedStream(potasium, feed, key, group))
+        this._streams = feedsByPeers.map(({peerID, feed}) => new ReverseFeedStream(potasium, feed, peerID, key))
         this._sortStreams()
         // TODO: Remove length. Doesnt make sense to use in hyperchat.
         this.length = this._streams.reduce((accu, stream) => accu + stream.length, 0)
@@ -67,54 +67,8 @@ class FeedMerger extends EventEmitter {
         })
     }
 
-    // _getPrev(cb) {
-    //     this._getAllPrevs(prevs => {
-    //         let leftStream = prevs[0].stream
-    //         let rightStream = prevs[1].stream
-    //         let left = prevs[0].prev || null
-    //         let right = prevs[1].prev || null
-
-    //         if (left === null && right === null) return cb(new Error("both streams are empty"), null)
-    //         // left feed is empty. 
-    //         if (left === null) return cb(null, this._removeUnusedMetaData(right))
-    //         // feed B is empty
-    //         if (right === null) return cb(null, this._removeUnusedMetaData(left))
-
-    //         // NOTE: ENTERING HACKY-ZONE!  
-    //         left.otherSeq = left.otherSeqs[0].length
-    //         right.otherSeq = right.otherSeqs[0].length
-    //         // LEAVING HACKY ZONE
-
-    //         let res = this._compare2(left, right)
-    //         // save right/left for next round
-    //         if (res === 1) {
-    //             rightStream.saveUnused(right)
-    //         } else if (res === -1) {
-    //             leftStream.saveUnused(left)
-    //         } else {
-    //             //TODO: handle collision
-    //             throw new Error("COLLISION DETECTED. NOT HANDLED YET")
-    //         }
-
-    //         (res === 1) ? cb(null, this._removeUnusedMetaData(left)) : cb(null, this._removeUnusedMetaData(right))
-    //     })
-    // }
-
     _handleData(data) {
         this.emit('data', this._removeUnusedMetaData(data))
-    }
-
-    /// a comes before b: return 1
-    /// b comes before a: return -1
-    /// a, b not comparable: return 0
-    _compare2(a, b) {
-        if (a.ownSeq > b.otherSeq && (b.ownSeq > a.otherSeq)) return 0
-
-        if (a.ownSeq > b.otherSeq) return 1
-        else if (b.ownSeq > a.otherSeq) return -1
-        else {
-            throw new Error("_compare: Cannot compare " + a + " and " + b)
-        }
     }
 
     _removeUnusedMetaData(data) {

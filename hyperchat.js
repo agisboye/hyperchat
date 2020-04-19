@@ -267,8 +267,8 @@ class Hyperchat extends EventEmitter {
         console.log("Setting up readstream for", this._groupToString(group))
 
         let key = this._keychain.getKeyForGroup(group)
-        this._feedsManager.getFeedsForGroup(group, async feeds => {
-            let merged = new FeedMerger(this._potasium, key, feeds, group)
+        this._feedsManager.getFeedsByPeersForGroup(group, async feedsByPeers => {
+            let merged = new FeedMerger(this._potasium, key, feedsByPeers, group)
 
             for (let i = 0; i < merged.length; i++) {
                 let res = await merged.getPrevAsync()

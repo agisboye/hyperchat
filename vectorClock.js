@@ -24,6 +24,7 @@ function _minVector(k) {
     return (new Array(k)).fill(Number.NEGATIVE_INFINITY)
 }
 
+/// returns the largest of the vectors in 'vs'
 function max(vs) {
     if (vs.length === 0) return null
     let max = _minVector(vs[0].prev.vector.length)
