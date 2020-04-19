@@ -79,7 +79,7 @@ class Hyperchat extends EventEmitter {
      * Returns an array of known peers as well as their current online status
      */
     peers() {
-        let peers = Object.keys(this._peerPersistence._peers)
+        let peers = Object.keys(this._peerPersistence.uniquePeers())
         return peers.map(id => {
             return {
                 id: id,
@@ -94,11 +94,11 @@ class Hyperchat extends EventEmitter {
         this._peerPersistence.addGroup(group)
         console.log("inviting", this._groupToString(group))
         this._joinGroup(group)
-        
+
         let discoveryKeys = group.map(peer => this._peerPersistence.getDiscoveryKeyFromPeerID(peer))
-        
+
         this._pendingInvites.addPendingInvite({ discKeys: discoveryKeys, peerIDs: group })
-        
+
         this.emit(Events.PEERS_CHANGED, this.peers())
     }
 
@@ -134,8 +134,8 @@ class Hyperchat extends EventEmitter {
      */
     getReadStream(peerID, callback) {
         let otherFeedPublicKey = this._peerPersistence.getFeedPublicKeyFromPeerID(peerID)
-        let key = this._keychain.getKeyForPeerIDs([peerID])
-        
+        let key = this._keychain.getKeyForGroup([peerID])
+
         this._feedsManager.getFeed(otherFeedPublicKey, feed => {
             let merged = new FeedMerger(this._potasium, key, feed, this._feed, peerID)
             callback(null, merged)

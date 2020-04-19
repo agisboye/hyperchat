@@ -13,6 +13,10 @@ class PeerPersistence {
         return this._groups.map(group => group.map(peer => Buffer.from(peer, 'hex')))
     }
 
+    uniquePeers() {
+        return [... new Set(this._groups.flat())]
+    }
+
     // Ensures that each group is converted to strings + sorted lexiographically before adding it
     addGroup(group) {
         if (this.knowsGroup(group)) return
