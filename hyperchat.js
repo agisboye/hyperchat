@@ -14,6 +14,13 @@ const PendingInvites = require('./pendingInvites')
 const HYPERCHAT_EXTENSION = "hyperchat"
 const HYPERCHAT_PROTOCOL_INVITE = "invite"
 
+
+const Events = {
+    READY: "ready",
+    INVITE: "invite",
+    PEERS_CHANGED: "peers_changed"
+}
+
 class Hyperchat extends EventEmitter {
 
     constructor(name) {
@@ -37,9 +44,11 @@ class Hyperchat extends EventEmitter {
         this.sendIdentityProofs = true
 
         this._onlineIndicator = new OnlineIndicator(peer => {
-            console.log(peer.substring(0, 10) + "... is online")
+            console.log(this._ellipticizeBuffer(peer) + "... is online")
+            this.emit(Events.PEERS_CHANGED, this.peers())
         }, peer => {
-            console.log(peer.substring(0, 10) + "... is offline")
+            console.log(this._ellipticizeBuffer(peer) + "... is offline")
+            this.emit(Events.PEERS_CHANGED, this.peers())
         })
         this._protocolKeyPair = Protocol.keyPair()
     }
@@ -55,16 +64,28 @@ class Hyperchat extends EventEmitter {
             this._joinGroups()
             this._setupReadStreams()
             this._swarm.on('connection', (socket, details) => this._onConnection(socket, details))
-            this.emit('ready')
+            this.emit(Events.READY)
         })
     }
 
-    stop() {
-        // TODO:
-        // this._swarm.leave()
-    }
+    /**
+     * Returns the users peer ID.
+     */
     me() {
         return this._potasium.ownPeerID
+    }
+
+    /**
+     * Returns an array of known peers as well as their current online status
+     */
+    peers() {
+        let peers = Object.keys(this._peerPersistence._peers)
+        return peers.map(id => {
+            return {
+                id: id,
+                isOnline: this._onlineIndicator.isOnline(id)
+            }
+        })
     }
 
     invite(group) {
@@ -77,11 +98,14 @@ class Hyperchat extends EventEmitter {
         let discoveryKeys = group.map(peer => this._peerPersistence.getDiscoveryKeyFromPeerID(peer))
         
         this._pendingInvites.addPendingInvite({ discKeys: discoveryKeys, peerIDs: group })
+        
+        this.emit(Events.PEERS_CHANGED, this.peers())
     }
 
     acceptInvite(group) {
         this._setupReadstreamForGroupIfNeeded(group)
         this._peerPersistence.addGroup(group)
+        this.emit(Events.PEERS_CHANGED, this.peers())
 
         for (let peerID of group) {
             let stream = this._inviteStreams[peerID]
@@ -93,7 +117,6 @@ class Hyperchat extends EventEmitter {
     }
 
     sendMessageTo(group, content) {
-        //TODO: Do we need both feed keys and lenghts or just the lenghts?
         this._feedsManager.getLengthsOfFeeds(group, lenghts => {
             let key = this._keychain.getKeyForGroup(group)
             this._potasium.createEncryptedMessage(content, lenghts, key, message => {
@@ -104,9 +127,24 @@ class Hyperchat extends EventEmitter {
         })
     }
 
+    /**
+     * Sets up a read stream that contains all messages
+     * for a given chat.
+     * @param {*} peerID 
+     */
+    getReadStream(peerID, callback) {
+        let otherFeedPublicKey = this._peerPersistence.getFeedPublicKeyFromPeerID(peerID)
+        let key = this._keychain.getKeyForPeerIDs([peerID])
+        
+        this._feedsManager.getFeed(otherFeedPublicKey, feed => {
+            let merged = new FeedMerger(this._potasium, key, feed, this._feed, peerID)
+            callback(null, merged)
+        })
+    }
+
     /** Private API **/
     _announceSelf() {
-        console.log("Announcing self:", this._peerIDToString(this._feed.discoveryKey))
+        console.log("Announcing self:", this._ellipticizeBuffer(this._feed.discoveryKey))
         this._swarm.join(this._feed.discoveryKey, { lookup: true, announce: true })
     }
 
@@ -178,7 +216,7 @@ class Hyperchat extends EventEmitter {
                             // Sender of challenge is always at head. Tail is other people in group.
                             let peerID = answer.peerIDs[0]
                             this._inviteStreams[peerID] = stream
-                            this.emit('invite', answer.peerIDs)
+                            this.emit(Events.INVITE, answer.peerIDs)
                         } else {
                             console.log("Protocol message received. Challenge failed")
                         }
@@ -251,15 +289,21 @@ class Hyperchat extends EventEmitter {
         console.log('------------------------')
         console.log('> status [hex notation]:')
         console.log("> Peer ID:", this._potasium.ownPeerID.toString('hex'))
-        console.log('> feedkey =', this._feed.key.toString('hex').substring(0, 10) + "...")
-        console.log('> disckey =', this._feed.discoveryKey.toString('hex').substring(0, 10) + "...")
-        console.log('> public  =', this._keychain.masterKeys.pk.toString('hex').substring(0, 10) + "...")
-        console.log('> secret  =', this._keychain.masterKeys.sk.toString('hex').substring(0, 10) + "...")
+        console.log('> feedkey =', this._ellipticizeBuffer(this._feed.key))
+        console.log('> disckey =', this._ellipticizeBuffer(this._feed.discoveryKey))
+        console.log('> public  =', this._ellipticizeBuffer(this._keychain.masterKeys.pk))
+        console.log('> secret  =', this._ellipticizeBuffer(this._keychain.masterKeys.sk))
         console.log('------------------------')
     }
 
-    _peerIDToString(peerID) {
-        return peerID.toString('hex').substring(0, 10) + "..."
+    /**
+     * Takes a buffer and returns the head followed by an ellipsis.
+     * @param {Buffer} buffer 
+     * @param {number} length
+     * @returns {string}
+     */
+    _ellipticizeBuffer(buffer, length = 10) {
+        return buffer.toString('hex').substring(0, length) + "..."
     }
 
     _groupToString(group) {
@@ -272,4 +316,4 @@ class Hyperchat extends EventEmitter {
     }
 }
 
-module.exports = Hyperchat
+module.exports = { Hyperchat, Events }

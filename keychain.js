@@ -23,9 +23,10 @@ class KeyChain {
     }
 
     /// Returns secret key for DM with 'peerIDs'. 
-    /// If DM is new, a secret key is generated, saved, and returned. 
+    /// If thread is new, a secret key is generated, saved, and returned. 
     getKeyForGroup(group) {
         let hash = this._hashGroup(group)
+    
         let key = this._keys[hash]
 
         if (key) {
@@ -106,10 +107,10 @@ class KeyChain {
         let peerIDSet = new Set(group)
         peerIDSet.add(this._ownPeerID)
 
-        group = [...peerIDSet]
-        // We need to sort the peers lexiographically because a 
-        // DM between A and B is identical to a DM between B and A
-        group.sort((p1, p2) => p1.localeCompare(p2))
+        group = [... peerIDSet]
+        // Sort peers lexicographically to ensure we always get the same
+        // hash for the same set of peers.
+        group.sort((p1, p2) => p1.localeCompare(p2, 'en'))
         group = group.map((p) => Buffer.from(p, 'hex'))
 
         this._printpeers(group)

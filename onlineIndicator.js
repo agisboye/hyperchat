@@ -5,6 +5,11 @@ class OnlineIndicator {
         this._peers = {}
     }
 
+    isOnline(peer) {
+        if (Buffer.isBuffer(peer)) return this.isOnline(peer.toString('hex'))
+        return this._peers[peer] >= 1
+    }
+
     increment(peer) {
         // convert peer to hex string
         if (Buffer.isBuffer(peer)) return this.increment(peer.toString('hex'))

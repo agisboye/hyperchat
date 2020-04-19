@@ -1,4 +1,4 @@
-const Hyperchat = require('./hyperchat')
+const { Hyperchat } = require('./hyperchat')
 
 let knowsOtherPeerId = process.argv[3] !== undefined
 let name = process.argv[2]
@@ -15,6 +15,8 @@ let chat = new Hyperchat(name)
 chat.start()
 
 chat.on('ready', () => {
+    setupReadStreams()
+
     if (knowsOtherPeerId) {
         chat.invite(peers)
     }
@@ -30,6 +32,23 @@ chat.on('decryptedMessage', (message) => {
     console.log('> message:', message)
 })
 
+function setupReadStreams() {
+    for (let peer of chat.peers()) {
+        
+        const peerID = Buffer.from(peer.id, "hex")
+
+        chat.getReadStream(peerID, (error, stream) => {
+            stream.on("data", message => {
+                const senderID = (message.sender === "other") ? peerID : chat.me()
+                const sender = senderID.toString('hex').substring(0, 10)
+                console.log(`[${sender}...]: ${message.message}`)
+            })
+        })
+
+    }
+}
+
+/* User input */
 process.stdin.on('data', data => {
 
     // let input = data.toString('utf-8').split(' ')
