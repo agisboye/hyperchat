@@ -1,28 +1,28 @@
 {
-  "name": "hyperchat-poc",
-  "version": "1.0.0",
-  "description": "",
-  "main": "main.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/agisboye/hyperchat-poc.git"
-  },
-  "author": "",
-  "license": "ISC",
-  "bugs": {
-    "url": "https://github.com/agisboye/hyperchat-poc/issues"
-  },
-  "homepage": "https://github.com/agisboye/hyperchat-poc#readme",
-  "dependencies": {
-    "duplex-json-stream": "^1.0.1",
-    "hypercore": "^8.9.0",
-    "hyperswarm": "^2.11.1",
-    "noise-peer": "^1.1.0",
-    "sodium-native": "^3.0.0",
-    "sorted-union-stream": "^3.0.1",
-    "uuid": "^3.4.0"
-  }
+    "name": "hyperchat-poc",
+    "version": "1.0.0",
+    "description": "",
+    "main": "main.js",
+    "scripts": {
+        "test": "echo \"Error: no test specified\" && exit 1"
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/agisboye/hyperchat-poc.git"
+    },
+    "author": "",
+    "license": "ISC",
+    "bugs": {
+        "url": "https://github.com/agisboye/hyperchat-poc/issues"
+    },
+    "homepage": "https://github.com/agisboye/hyperchat-poc#readme",
+    "dependencies": {
+        "duplex-json-stream": "^1.0.1",
+        "hypercore": "^8.9.0",
+        "hyperswarm": "^2.13.0",
+        "noise-peer": "^1.1.0",
+        "sodium-native": "^3.0.0",
+        "sorted-union-stream": "^3.0.1",
+        "uuid": "^3.4.0"
+    }
 }
