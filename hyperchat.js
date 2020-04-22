@@ -269,12 +269,14 @@ class Hyperchat extends EventEmitter {
         this._feedsManager.getFeedsByPeersForGroup(group, async feedsByPeers => {
             let merged = new FeedMerger(this._potasium, key, feedsByPeers, group)
 
-            for (let i = 0; i < merged.length; i++) {
+            // a bit hacky..
+            let thereIsMore = true
+            while (thereIsMore) {
                 let res = await merged.getPrevAsync()
                 if (res) {
                     this.emit('decryptedMessage', res)
                 } else {
-                    break
+                    thereIsMore = false
                 }
             }
 

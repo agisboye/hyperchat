@@ -8,15 +8,13 @@ class FeedMerger extends EventEmitter {
         super()
         this._streams = feedsByPeers.map(({ peerID, feed }) => new ReverseFeedStream(potasium, feed, peerID, key))
         this._sortStreams()
-        // TODO: Remove length. Doesnt make sense to use in hyperchat.
-        this.length = this._streams.reduce((accu, stream) => accu + stream.length, 0)
         this._streams.forEach(stream => stream.on('data', data => this.emit('data', this._removeUnusedMetaData(data))))
 
         this._promisifiedGetPrev = promisify(this._getPrev).bind(this);
     }
 
-     /// Returns the latest messages [{message, sender, vector}] using callback
-     /// or 'null' if end of stream is reached. 
+    /// Returns the latest messages [{message, sender, vector}] using callback
+    /// or 'null' if end of stream is reached. 
     async getPrevAsync() {
         try {
             let x = await this._promisifiedGetPrev()
@@ -37,18 +35,17 @@ class FeedMerger extends EventEmitter {
         this._getAllPrevsEnumerated((enumeratedPrevs) => {
             let maxes = vectorClock.max(enumeratedPrevs)
 
+            if (maxes.length === 0) return cb(new Error('end of stream'), null)
+
             // save the rest to next iteration
             this._rest = enumeratedPrevs.filter(elem => !maxes.includes(elem))
 
-            // remove indices before returning
-            let res = maxes.map(({ index: _, prev: prev }) => prev)
+            // remove indices and other unused metadata
+            let res = maxes
+                .map(({ index: _, prev: prev }) => prev)
+                .map(message => this._removeUnusedMetaData(message))
 
-            if (res.length > 0) {
-                res = res.map(message => this._removeUnusedMetaData(message))
-                return cb(null, res)
-            } else {
-                return cb(new Error('end of stream'), null)
-            }
+            return cb(null, res)
         })
     }
 

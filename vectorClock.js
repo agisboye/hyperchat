@@ -26,10 +26,11 @@ function _minVector(k) {
 
 /// returns the largest of the vectors in 'vs'
 function max(vs) {
-    if (vs.length === 0) return null
-    let max = _minVector(vs[0].prev.vector.length)
     let res = []
+    if (vs.length === 0) return res
 
+    let max = _minVector(vs[0].prev.vector.length)
+    
     for (var i = 0; i < vs.length; i++) {
         let vector = vs[i].prev.vector
         let comparison = _compare(vector, max)

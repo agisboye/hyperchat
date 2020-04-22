@@ -7,6 +7,7 @@ class ReverseFeedStream extends EventEmitter {
         this._peerID = peerID
         this._relevantIndex = feed.length - 1 // start at head index
         this._potasium = ownPotasium
+        this._relevantIndexNotSet = true
         this._key = key
         this._isOwnFeed = feed.writable
         this.length = feed.length
@@ -15,22 +16,29 @@ class ReverseFeedStream extends EventEmitter {
     }
 
     /// Returns (err, prev) via callback where prev: { message, sender, vector }
+
     getPrev(cb) {
-        if (this._relevantIndex < 0 || this._relevantIndex === undefined) return cb(new Error("end of stream"), null)
+        this.feed.ready(() => {
+            if (this._relevantIndexNotSet) {
+                this._relevantIndex = this.feed.length - 1
+                this._relevantIndexNotSet = false
+            }
+            if (this._relevantIndex < 0 || this._relevantIndex === undefined) return cb(new Error("end of stream"), null)
 
-        if (this._relevantIndex === this.feed.length - 1) {
-            // Base case: We need to find the index of the first message relevant for us.
-            this.feed.head((err, head) => {
-                if (err) return cb(new Error("no head found"), null)
+            if (this._relevantIndex === this.feed.length - 1) {
+                // Base case: We need to find the index of the first message relevant for us.
+                this.feed.head((err, head) => {
+                    if (err) return cb(new Error("no head found"), null)
 
-                this._relevantIndex = head.data.dict[this._chatID]
+                    this._relevantIndex = head.data.dict[this._chatID]
 
+                    return this._getDecryptedMessageOfRelevantIndex(cb)
+                })
+            } else {
+                // relevant index was correctly set last time 'getPrev' was called (invariant)
                 return this._getDecryptedMessageOfRelevantIndex(cb)
-            })
-        } else {
-            // relevant index was correctly set last time 'getPrev' was called (invariant)
-            return this._getDecryptedMessageOfRelevantIndex(cb)
-        }
+            }
+        })
     }
 
     /// Returns (err, prev) via callback where prev: { message, sender, vector } 
