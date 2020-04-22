@@ -85,10 +85,11 @@ class FeedMerger extends EventEmitter {
 
     // removes the vector time stamp from a message
     _removeUnusedMetaData(data) {
-        return {
-            sender: data.sender,
-            message: data.message
-        }
+        return data
+        // return {
+        //     sender: data.sender,
+        //     message: data.message
+        // }
     }
 
     /// Sorts '_streams' lexiographically on their feed-key
