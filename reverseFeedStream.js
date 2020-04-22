@@ -14,6 +14,7 @@ class ReverseFeedStream extends EventEmitter {
         this._setupHandlers()
     }
 
+    /// Returns (err, prev) via callback where prev: { message, sender, vector }
     getPrev(cb) {
         if (this._relevantIndex < 0 || this._relevantIndex === undefined) return cb(new Error("end of stream"), null)
 
@@ -32,6 +33,8 @@ class ReverseFeedStream extends EventEmitter {
         }
     }
 
+    /// Returns (err, prev) via callback where prev: { message, sender, vector } 
+    /// Precondition: '_relevantIndex' has been correctly set. 
     _getDecryptedMessageOfRelevantIndex(cb) {
         if (this._relevantIndex < 0 || this._relevantIndex === undefined) return cb(new Error("end of stream"), null)
 
@@ -48,12 +51,15 @@ class ReverseFeedStream extends EventEmitter {
                 })
             } else {
                 // Last message => There is no relevantIndex after this one
+                // Setting '_relevantIndex = undefined' causes the next iteration of 'getPrev' to terminate.
                 this._relevantIndex = undefined
                 this._getDecryptedMessage(currentMessage, cb)
             }
         })
     }
 
+    /// Returns (err, prev) via callback where prev: { message, sender, vector }. 
+    /// 'currentMessage' is {type, data: { ciphertext, dict }}
     _getDecryptedMessage(currentMessage, cb) {
         let decrypted = this._decryptAndAddMetaData(currentMessage.data.ciphertext)
 
@@ -96,6 +102,7 @@ class ReverseFeedStream extends EventEmitter {
         })
     }
 
+    /// Returns { message, sender, vector } if ciphertext can be decrypted else null. 
     _decryptAndAddMetaData(ciphertext) {
         let decrypted = this._potasium.decryptMessageUsingKey(Buffer.from(ciphertext, 'hex'), this._key)
         if (decrypted) {
