@@ -214,8 +214,7 @@ class Hyperchat extends EventEmitter {
                             this._keychain.saveKeyForPeerIDs(answer.key, answer.peerIDs)
 
                             // Sender of challenge is always at head. Tail is other people in group.
-                            let peerID = answer.peerIDs[0]
-                            this._inviteStreams[peerID] = stream
+                            answer.peerIDs.forEach(peerID => this._inviteStreams[peerID] = stream)
                             this.emit(Events.INVITE, answer.peerIDs)
                         } else {
                             console.log("Protocol message received. Challenge failed")
