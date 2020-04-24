@@ -8,8 +8,10 @@ const Potasium = require('./potasium')
 const FeedManager = require('./feedManager')
 const FeedMerger = require('./feedMerger')
 const OnlineIndicator = require('./onlineIndicator')
-const KeyChain = require('./keychain')
+const Keychain = require('./keychain')
 const PendingInvites = require('./pendingInvites')
+const Peer = require('./peer')
+const Group = require('./group')
 
 const HYPERCHAT_EXTENSION = "hyperchat"
 const HYPERCHAT_PROTOCOL_INVITE = "invite"
@@ -25,101 +27,125 @@ class Hyperchat extends EventEmitter {
 
     constructor(name) {
         super()
-        this._name = name
-        this._path = './feeds/' + name + '/'
-        this._swarm = hyperswarm()
-        this._feed = hypercore(this._path + "own", { valueEncoding: 'json' })
+        
+        let path = './feeds/' + name + '/'
 
-        // TODO: When someone starts replicating with us, remove them from the list of pending invites? 
-        // Replicating with someone is how an invite is accepted.
-        this._peerPersistence = new PeerPersistence(this._name)
-        this._pendingInvites = new PendingInvites()
-        this._keychain = new KeyChain(this._name)
+        this._keychain = new Keychain(name)
+        
+        let keyPair = this._keychain.myKeypair
+        this.me = new Peer(keyPair.publicKey)
+        this._peerPersistence = new PeerPersistence(name)
+        this._pendingInvites = new PendingInvites(this.me)
+        
+        this._swarm = hyperswarm()
+        this._protocolKeyPair = Protocol.keyPair()
+        
+        this._feed = hypercore(
+            path + keyPair.publicKey.toString("hex"),
+            keyPair.publicKey,
+            { 
+                valueEncoding: 'json',
+                secretKey: keyPair.secretKey
+            }
+        )
+        this._feedsManager = new FeedManager(path, this._feed)
+        this._potasium = new Potasium(this._feed)
 
         // Streams from peers that have sent an invite which has not yet been accepted/rejected.
-        // Keyed by peerID.
+        // Keyed by peer.
         this._inviteStreams = {}
 
         // Determines whether this client will send an online proof to other clients that it connects to.
         this.sendIdentityProofs = true
 
         this._onlineIndicator = new OnlineIndicator(peer => {
-            console.log(this._ellipticizeBuffer(peer) + "... is online")
-            this.emit(Events.PEERS_CHANGED, this.peers())
+            console.log(`${peer} is online`)
+            this.emit(Events.PEERS_CHANGED, this.peers)
         }, peer => {
-            console.log(this._ellipticizeBuffer(peer) + "... is offline")
-            this.emit(Events.PEERS_CHANGED, this.peers())
+            console.log(`${peer} is offline`)
+            this.emit(Events.PEERS_CHANGED, this.peers)
         })
-        this._protocolKeyPair = Protocol.keyPair()
+        
     }
 
     /** Public API **/
     start() {
         this._feed.ready(() => {
-            this._potasium = new Potasium(this._feed, this._keychain.masterKeys)
-            this._keychain.setOwnPeerID(this._potasium.ownPeerID)
-            this._feedsManager = new FeedManager(this._path, this._feed)
             this._print()
             this._announceSelf()
-            this._joinGroups()
-            this._setupReadStreams()
+            this._joinTopics(this._peerPersistence.peers)
             this._swarm.on('connection', (socket, details) => this._onConnection(socket, details))
             this.emit(Events.READY)
         })
     }
 
     /**
-     * Returns the users peer ID.
+     * Returns an array of all groups that we are participating in.
+     * @returns {Array<Group>}
      */
-    me() {
-        return this._potasium.ownPeerID
+    get groups() {
+        return this._peerPersistence.groups
     }
+
+
 
     /**
      * Returns an array of known peers as well as their current online status
+     * @returns {Array<Peer>}
      */
-    peers() {
-        let peers = Object.keys(this._peerPersistence.uniquePeers())
-        return peers.map(id => {
+    get peers() {
+        return this._peerPersistence.peers.map(peer => {
             return {
-                id: id,
-                isOnline: this._onlineIndicator.isOnline(id)
+                id: peer.id,
+                isOnline: this._onlineIndicator.isOnline(peer)
             }
         })
     }
 
-    invite(group) {
-        group.push(this._potasium.ownPeerID)
-        this._setupReadstreamForGroupIfNeeded(group)
+    /**
+     * 
+     * @param {Array<Peer>} peers
+     */
+    invite(peers) {
+        // Include self in conversation
+        peers.push(this.me)
+
+        const group = new Group(peers)
         this._peerPersistence.addGroup(group)
-        console.log("inviting", this._groupToString(group))
-        this._joinGroup(group)
+        const key = this._keychain.getGroupKey(group)
+        console.log("Inviting " + group)
 
-        let discoveryKeys = group.map(peer => this._peerPersistence.getDiscoveryKeyFromPeerID(peer))
-
-        this._pendingInvites.addPendingInvite({ discKeys: discoveryKeys, peerIDs: group })
-
-        this.emit(Events.PEERS_CHANGED, this.peers())
+        this._pendingInvites.addPendingInvites(group, key)
+        this._joinTopics(group.peers)
+        this.emit(Events.PEERS_CHANGED, this.peers)
     }
 
+    /**
+     * 
+     * @param {Group} group 
+     */
     acceptInvite(group) {
-        this._setupReadstreamForGroupIfNeeded(group)
         this._peerPersistence.addGroup(group)
-        this.emit(Events.PEERS_CHANGED, this.peers())
+        this.emit(Events.PEERS_CHANGED, this.peers)
 
-        for (let peerID of group) {
-            let stream = this._inviteStreams[peerID]
+        for (let peer of group.peers) {
+            let stream = this._inviteStreams[peer.id]
             if (stream) {
-                delete this._inviteStreams[peerID]
-                this._replicate(peerID, stream)
+                delete this._inviteStreams[peer.id]
+                this._replicate(peer, stream)
             }
         }
     }
 
+    /**
+     * 
+     * @param {Group} group 
+     * @param {string} content 
+     */
     sendMessageTo(group, content) {
         this._feedsManager.getLengthsOfFeeds(group, lenghts => {
-            let key = this._keychain.getKeyForGroup(group)
-            this._potasium.createEncryptedMessage(content, lenghts, key, message => {
+            let key = this._keychain.getGroupKey(group)
+            this._potasium.createEncryptedMessage(content, lenghts, key, (message) => {
                 this._feed.append(message, err => {
                     if (err) throw err
                 })
@@ -129,74 +155,77 @@ class Hyperchat extends EventEmitter {
 
     /**
      * Sets up a read stream that contains all messages
-     * for a given chat.
-     * @param {*} peerID 
+     * in a given conversation.
+     * @param {Group} group
+     * @param {Function} callback - Takes an error and a stream argument.
      */
-    getReadStream(peerID, callback) {
-        let otherFeedPublicKey = this._peerPersistence.getFeedPublicKeyFromPeerID(peerID)
-        let key = this._keychain.getKeyForGroup([peerID])
-
-        this._feedsManager.getFeed(otherFeedPublicKey, feed => {
-            let merged = new FeedMerger(this._potasium, key, feed, this._feed, peerID)
-            callback(null, merged)
+    getReadStream(group, callback) {
+        let key = this._keychain.getGroupKey(group)
+        
+        this._feedsManager.getFeedsByPeersForGroup(group, feedsByPeers => {
+            let merger = new FeedMerger(this._potasium, key, feedsByPeers, group)
+            callback(null, merger)
         })
     }
 
     /** Private API **/
     _announceSelf() {
-        console.log("Announcing self:", this._ellipticizeBuffer(this._feed.discoveryKey))
-        this._swarm.join(this._feed.discoveryKey, { lookup: true, announce: true })
+        console.log("Announcing self")
+        this._swarm.join(this.me.feedDiscoveryKey, { lookup: true, announce: true })
     }
 
-    _joinGroups() {
-        this._peerPersistence.groups().forEach(group => this._joinGroup(group))
-    }
-
-    _joinGroup(group) {
-        console.log(`Joining peer topics: ${this._groupToString(group)}`)
-        group.forEach(peer => {
-            let peerFeedKey = this._peerPersistence.getFeedPublicKeyFromPeerID(peer)
-            let peerDiscoveryKey = this._peerPersistence.getDiscoveryKeyFromFeedPublicKey(peerFeedKey)
-            this._swarm.join(peerDiscoveryKey, { lookup: true, announce: true })
+    /**
+     * Joins the topics of all peers that we know.
+     * @param {Array<Peer>} peers 
+     */
+    _joinTopics(peers) {
+        peers.forEach(peer => {
+            this._swarm.join(peer.feedDiscoveryKey, { lookup: true, announce: true })
         })
-    }
-
-    _setupReadStreams() {
-        for (let group of this._peerPersistence.groups()) {
-            this._setupReadStreamFor(group)
-        }
     }
 
     _onConnection(socket, details) {
         const stream = new Protocol(details.client, {
-            timeout: false,
+            timeout: false, // TODO: ?
             keyPair: this._protocolKeyPair,
             onhandshake: () => {
-                // drop connection if it is already established
+                // Drop connection if it is already established
                 let connectionIsDropped = details.deduplicate(stream.publicKey, stream.remotePublicKey)
                 console.log("onhandshake,", connectionIsDropped)
                 if (connectionIsDropped) return
             },
             ondiscoverykey: (discoveryKey) => {
-                let peerID = this._peerPersistence.getFirstPeerIDMatchingTopic(discoveryKey)
-
-                if (peerID) {
+                console.log("ondiscoverykey")
+                let peer = this._peerPersistence.getPeerForDiscoveryKey(discoveryKey)
+                
+                if (peer) {
                     // If we have this topic among our known peers, we replicate it.
-                    this._replicate(peerID, stream)
+                    this._replicate(peer, stream)
 
                     // If the peer has sent a capability for  their key, we know that they
-                    // are the owner.
-                    let feedKey = this._peerPersistence.getFeedPublicKeyFromPeerID(peerID)
-                    if (stream.remoteVerified(feedKey)) {
-                        this._onlineIndicator.increment(peerID)
+                    // are the owner.                    
+                    if (stream.remoteVerified(peer.pubKey)) {
+                        const count = this._onlineIndicator.increment(peer)
+
+                        // TODO: Make this prettier
+                        if (count === 1) {
+                            const invites = this._pendingInvites.getPendingInvites(peer)
+                            for (let invite of invites) {
+                                ext.send({
+                                    type: HYPERCHAT_PROTOCOL_INVITE,
+                                    data: invite
+                                })
+                            }
+                        }
+
                     }
                 }
             },
-            onchannelclose: (discoveryKey, publicKey) => {
-                let peerID = this._peerPersistence.getFirstPeerIDMatchingTopic(discoveryKey)
+            onchannelclose: (discoveryKey, _) => {
+                let peer = this._peerPersistence.getPeerForDiscoveryKey(discoveryKey)
 
-                if (peerID) {
-                    this._onlineIndicator.decrement(peerID)
+                if (peer) {
+                    this._onlineIndicator.decrement(peer)
                 }
             }
         })
@@ -207,18 +236,14 @@ class Hyperchat extends EventEmitter {
 
                 switch (message.type) {
                     case HYPERCHAT_PROTOCOL_INVITE:
-                        let challenge = Buffer.from(message.data.challenge, 'hex')
-                        let answer = this._potasium.answerChallenge(challenge)
-                        if (answer) {
-                            console.log("Protocol message received. Challenge answered")
-                            this._keychain.saveKeyForPeerIDs(answer.key, answer.peerIDs)
+                        // TODO: Verify that invite contains a verified peer
+                        
+                        const peers = message.data.peers.map(p => new Peer(p))
+                        const group = new Group(peers)
+                        const key = Buffer.from(message.data.key, "hex")
+                        this._keychain.saveGroupKey(key, group)
 
-                            // Sender of challenge is always at head. Tail is other people in group.
-                            answer.peerIDs.forEach(peerID => this._inviteStreams[peerID] = stream)
-                            this.emit(Events.INVITE, answer.peerIDs)
-                        } else {
-                            console.log("Protocol message received. Challenge failed")
-                        }
+                        this.emit(Events.INVITE, group)
 
                         break
 
@@ -228,93 +253,29 @@ class Hyperchat extends EventEmitter {
             }
         })
 
-        // Send a challenge to the connecting peer
-        // if we are trying to invite on this topic.
-
-        this._pendingInvites.getAllPendingInvitesMatchingTopics(details.topics)
-            .map(peerIDs => {
-                let key = this._keychain.getKeyForGroup(peerIDs)
-                let challenges = peerIDs.map(peerID => this._potasium.generateChallenge(key, peerID, peerIDs))
-                return challenges
-            })
-            .flat()
-            .forEach(challenge => {
-                ext.send({
-                    type: HYPERCHAT_PROTOCOL_INVITE,
-                    data: {
-                        challenge: challenge.toString('hex')
-                    }
-                })
-            })
-
-        this._replicate(this._potasium.ownPeerID, stream)
+        this._replicate(this.me, stream)
         pump(stream, socket, stream)
     }
 
-    _replicate(peerID, stream) {
-        this._feedsManager.getFeed(peerID, feed => {
+    /**
+     * 
+     * @param {Peer} peer 
+     * @param {*} stream 
+     */
+    _replicate(peer, stream) {
+        this._feedsManager.getFeed(peer, feed => {
             feed.replicate(stream, { live: true })
-        })
-    }
-
-    _setupReadstreamForGroupIfNeeded(group) {
-        if (this._peerPersistence.knowsGroup(group)) return // The readstream is already setup
-        this._setupReadStreamFor(group)
-    }
-
-    async _setupReadStreamFor(group) {
-        console.log("Setting up readstream for", this._groupToString(group))
-
-        let key = this._keychain.getKeyForGroup(group)
-        this._feedsManager.getFeedsByPeersForGroup(group, async feedsByPeers => {
-            let merged = new FeedMerger(this._potasium, key, feedsByPeers, group)
-
-            // a bit hacky..
-            let thereIsMore = true
-            while (thereIsMore) {
-                let res = await merged.getPrevAsync()
-                if (res) {
-                    this.emit('decryptedMessage', res)
-                } else {
-                    thereIsMore = false
-                }
-            }
-
-            merged.on('data', message => {
-                this.emit('decryptedMessage', message)
-            })
         })
     }
 
     _print() {
         console.log('------------------------')
         console.log('> status [hex notation]:')
-        console.log("> Peer ID:", this._potasium.ownPeerID.toString('hex'))
-        console.log('> feedkey =', this._ellipticizeBuffer(this._feed.key))
-        console.log('> disckey =', this._ellipticizeBuffer(this._feed.discoveryKey))
-        console.log('> public  =', this._ellipticizeBuffer(this._keychain.masterKeys.pk))
-        console.log('> secret  =', this._ellipticizeBuffer(this._keychain.masterKeys.sk))
+        console.log('> feedkey =', this.me.id)
+        console.log('> disckey =', this.me.feedDiscoveryKey.toString('hex').substring(0, 10) + "...")
         console.log('------------------------')
     }
 
-    /**
-     * Takes a buffer and returns the head followed by an ellipsis.
-     * @param {Buffer} buffer 
-     * @param {number} length
-     * @returns {string}
-     */
-    _ellipticizeBuffer(buffer, length = 10) {
-        return buffer.toString('hex').substring(0, length) + "..."
-    }
-
-    _groupToString(group) {
-        let str = "["
-        group.forEach(peerID => {
-            str += peerID.toString('hex').substring(0, 6) + ".. ,"
-        })
-        str += "]"
-        return str
-    }
 }
 
 module.exports = { Hyperchat, Events }

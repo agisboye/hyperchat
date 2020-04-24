@@ -1,25 +1,13 @@
 const crypto = require('./crypto')
 
 class Potasium {
-    constructor(feed, masterkeys) {
+    constructor(feed) {
         this._feed = feed
-        this._pk = masterkeys.pk
-        this._sk = masterkeys.sk
-        this.ownPeerID = crypto.createPeerID(feed.key, this._pk)
     }
 
     /*
         Public API
     */
-
-    generateChallenge(key, receiverPeerID, group) {
-        return crypto.generateChallenge(this._sk, this._pk, this.ownPeerID, receiverPeerID, group, key)
-    }
-
-    answerChallenge(ciphertext) {
-        return crypto.answerChallenge(ciphertext, this._sk, this._pk)
-    }
-
     createEncryptedMessage(plaintext, vector, key, cb) {
         let internalMessage = {
             vector: vector, 
@@ -55,9 +43,7 @@ class Potasium {
 
         return (res) ? JSON.parse(res.toString('utf-8')) : null
     }
-    /*
-        Private API
-    */
+
 }
 
 module.exports = Potasium
