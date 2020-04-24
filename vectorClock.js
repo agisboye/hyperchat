@@ -50,14 +50,10 @@ function computeMax(vs) {
     return res
 }
 
-// CASE 2
-// Split c2 into {top, bottom} based on c1_min as reference
-// Assumes c1_max > c2_max and c1_min > c2_min
+// CASE 2 is assumed
+// Split c2 into {before: [indices], after: [indices]} based on 'reference' vector.
 function splitChunkUsingReference(reference, c2) {
-    let splitIndex = c2.findIndex((vector) => {
-        let res = _compare(vector, reference) === LEQ
-        return res
-    })
+    let splitIndex = c2.findIndex((vector) => _compare(vector, reference) === LEQ)
 
     return {
         before: range(splitIndex, c2.length),
