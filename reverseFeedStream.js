@@ -1,5 +1,17 @@
 const { EventEmitter } = require('events')
 
+//TODO: Find a better way to find out if we have reached the end of a chunk.
+function reachedEndOfChunk(vector1, vector2) {
+    return moreThanTwoElementsAreDifferent(vector1, vector2)
+}
+function moreThanTwoElementsAreDifferent(vector1, vector2) {
+    let counter = 0
+    for (let i = 0; i < vector1.length; i++) {
+        if (Math.abs(vector1[i] - vector2[i]) >= 1) counter++
+    }
+    return counter > 1
+}
+
 class ReverseFeedStream extends EventEmitter {
     constructor(ownPotasium, feed, peerID, key) {
         super()
@@ -15,10 +27,46 @@ class ReverseFeedStream extends EventEmitter {
         this._setupHandlers()
     }
 
-    /// Returns (err, prev) via callback where prev: { message, sender, vector }
 
+    getPrevChunk(cb) {
+        // base case
+        this.getPrev((err, prev) => {
+            if (err) return cb(err, null)
+            let reference = prev.vector
+            this._extendChunk([prev], reference, cb)
+        })
+    }
+
+    // induction step
+    // assumes chunk-size > 1. Satisfied by 'getPrevChunk'
+    _extendChunk(chunk, reference, cb) {
+        this.getPrev((err, prev) => {
+            // End of stream is reached.
+            if (err) return cb(null, chunk)
+
+            if (reachedEndOfChunk(reference, prev.vector)) {
+                // 'prev' is not included in this chunk. Put it back into the readstream.  
+                this._cachedPrev = prev
+                return cb(null, chunk)
+            } else {
+                chunk.push(prev)
+                return this._extendChunk(chunk, prev.vector, cb)
+            }
+        })
+    }
+
+    /** 
+     * Returns the latest message-block for a given conversation in the stream starting from head via callback. 
+     * If no message-block is present for the conversation, an error is returned. 
+     * @param {err, { message: string, sender: string, vector: [int] }} cb 
+     */
     getPrev(cb) {
         this.feed.ready(() => {
+            if (this._cachedPrev) {
+                let prev = this._cachedPrev
+                this._cachedPrev = null
+                return cb(null, prev)
+            }
             if (this._relevantIndexNotSet) {
                 this._relevantIndex = this.feed.length - 1
                 this._relevantIndexNotSet = false
@@ -55,27 +103,26 @@ class ReverseFeedStream extends EventEmitter {
                     if (err) return cb(err, null)
 
                     this._relevantIndex = nextMessage.data.dict[this._chatID]
-                    this._getDecryptedMessage(currentMessage, cb)
+                    let decrypted = this._getDecryptedMessage(currentMessage, cb)
+                    return cb(null, decrypted)
                 })
             } else {
                 // Last message => There is no relevantIndex after this one
                 // Setting '_relevantIndex = undefined' causes the next iteration of 'getPrev' to terminate.
                 this._relevantIndex = undefined
-                this._getDecryptedMessage(currentMessage, cb)
+                let decrypted = this._getDecryptedMessage(currentMessage, cb)
+                return cb(null, decrypted)
             }
         })
     }
 
-    /// Returns (err, prev) via callback where prev: { message, sender, vector }. 
+    /// Returns 'prev' via callback where prev: { message, sender, vector }. 
     /// 'currentMessage' is {type, data: { ciphertext, dict }}
-    _getDecryptedMessage(currentMessage, cb) {
+    _getDecryptedMessage(currentMessage) {
         let decrypted = this._decryptAndAddMetaData(currentMessage.data.ciphertext)
 
-        if (decrypted) {
-            return cb(null, decrypted)
-        } else {
-            return cb(new Error("Decryption failed"), null)
-        }
+        if (!decrypted) throw new Error("Decryption failed")
+        else return decrypted
     }
 
     _setupHandlers() {

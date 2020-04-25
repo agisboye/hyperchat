@@ -54,7 +54,7 @@ function _minVectorForVectors(vs) {
 
 // Returns {max: [index], rest: [index]} where max is array with 
 // indices of largest vectors (all parallel) and rest contains all other indices
-function computeMax(vs) {
+function max(vs) {
     let res = []
     if (vs.length === 0) return res
 
@@ -109,16 +109,18 @@ function splitChunkUsingReference(reference, c2) {
 
 // Works like pythons 'range' with step = 1
 function range(start, stop) {
-    var result = [];
+    var result = []
     for (var i = start; i < stop; i += 1) {
-        result.push(i);
+        result.push(i)
     }
+    return result
+}
 
-    return result;
-};
+
+
 
 module.exports = {
-    computeMax,
+    max,
     splitChunkUsingReference,
     range
 }
