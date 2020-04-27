@@ -163,7 +163,7 @@ class Hyperchat extends EventEmitter {
         let key = this._keychain.getGroupKey(group)
         
         this._feedsManager.getFeedsByPeersForGroup(group, feedsByPeers => {
-            let merger = new FeedMerger(this._potasium, key, feedsByPeers, group)
+            let merger = new FeedMerger(this._potasium, key, feedsByPeers)
             callback(null, merger)
         })
     }
