@@ -28,10 +28,11 @@ chat.on(Events.PEERS_CHANGED, peers => {
     setupReadStreams(false)
 })
 
-const messageCallback = message => {
-    // const senderID = (message.sender === "other") ? peerID : chat.me()
-    // const sender = senderID.toString('hex').substring(0, 10)
-    console.log(`[${message.sender}]: ${message.message}`)
+const messageCallback = result => {
+    if (!Array.isArray(result)) result = [result] // TODO: Workaround since result can be either a single msg or an array of msgs.
+    for (let message of result) {
+        console.log(`[${message.sender}]: ${message.message}`)
+    }
 }
 
 let streams = []
@@ -54,7 +55,6 @@ function setupReadStreams(printAll = false) {
 }
 
 async function drain(stream) {
-    console.log("drain")
     let res = await stream.getPrevAsync()
     while (res) {
         messageCallback(res)
@@ -62,34 +62,6 @@ async function drain(stream) {
     }
 }
 
-// _setupReadstreamForGroupIfNeeded(group) {
-//     if (this._peerPersistence.knowsGroup(group)) return // The readstream is already setup
-//     this._setupReadStreamFor(group)
-// }
-
-// async _setupReadStreamFor(group) {
-//     console.log("Setting up readstream for", this._groupToString(group))
-
-//     let key = this._keychain.getKeyForGroup(group)
-//     this._feedsManager.getFeedsByPeersForGroup(group, async feedsByPeers => {
-//         let merged = new FeedMerger(this._potasium, key, feedsByPeers, group)
-
-//         // a bit hacky..
-//         let thereIsMore = true
-//         while (thereIsMore) {
-//             let res = await merged.getPrevAsync()
-//             if (res) {
-//                 this.emit('decryptedMessage', res)
-//             } else {
-//                 thereIsMore = false
-//             }
-//         }
-
-//         merged.on('data', message => {
-//             this.emit('decryptedMessage', message)
-//         })
-//     })
-// }
 
 /* User input */
 process.stdin.on('data', data => {
