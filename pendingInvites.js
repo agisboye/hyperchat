@@ -1,4 +1,4 @@
-const crypto = require('./crypto')
+
 class PendingInvites {
 
     constructor(me) {
