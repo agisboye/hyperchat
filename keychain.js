@@ -60,6 +60,8 @@ class Keychain {
      * Loads keys from disk
      */
     _loadKeychain() {
+        this._group_keys = {}
+
         try {
             // Deserialize
             const file = fs.readFileSync(this.path, 'utf-8')
@@ -68,10 +70,12 @@ class Keychain {
                 publicKey: Buffer.from(obj.my_keys.publicKey, "hex"),
                 secretKey: Buffer.from(obj.my_keys.publicKey, "hex")
             }
-            this._group_keys = obj.group_keys.map(k => Buffer.from(k, "hex"))
-        } catch (err) {
-            this._group_keys = {}
-        }
+
+            for (let [k, v] of Object.entries(obj.group_keys)) {
+                this._group_keys[k] = Buffer.from(v, "hex")
+            }
+
+        } catch (err) {}
     }
 
     /**
