@@ -5,9 +5,6 @@ class Potasium {
         this._feed = feed
     }
 
-    /*
-        Public API
-    */
     createEncryptedMessage(plaintext, vector, key, cb) {
         let internalMessage = {
             vector: vector, 
@@ -15,9 +12,7 @@ class Potasium {
         }
 
         let cipher = crypto.encryptMessage(JSON.stringify(internalMessage), key)
-
-        let chatID = this.makeChatID(key, this._feed.key)
-
+        let chatID = crypto.makeChatID(key, this._feed.key).toString('hex')
         console.log("> createEncryptedMessage: key=", key.toString('hex').substring(0, 10))
 
         this._feed.head((err, head) => {
@@ -31,10 +26,6 @@ class Potasium {
                 }
             })
         })
-    }
-
-    makeChatID(key, senderFeedKey) {
-        return crypto.makeChatID(key, senderFeedKey).toString('hex')
     }
 
     //TODO: How do we obtain all other peerIDs in the group only from 'peerID'? We need some kind of map here.
