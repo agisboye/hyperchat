@@ -13,10 +13,13 @@ class Group {
     get id() {
         // Sort peers to ensure we always get the same
         // hash for the same set of peers.
-        const buffers = [...new Set(this.peers)]
-                            .map(p => p.pubKey)
-                            .sort(Buffer.compare)
-        
+        const ids = [...new Set(this.peers.map(p => p.id))]
+        const uniquePeers = ids.map(id => new Peer(id))
+
+        const buffers = uniquePeers
+                        .map(p => p.pubKey)
+                        .sort(Buffer.compare)
+
         const concatenation = Buffer.concat(buffers)
         const hash = crypto.hash(concatenation)
 
