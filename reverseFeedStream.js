@@ -1,15 +1,10 @@
 const { EventEmitter } = require('events')
+const FeedChunk = require('./feedChunk')
+
 
 //TODO: Find a better way to find out if we have reached the end of a chunk.
 function reachedEndOfChunk(vector1, vector2) {
-    return moreThanTwoElementsAreDifferent(vector1, vector2)
-}
-function moreThanTwoElementsAreDifferent(vector1, vector2) {
-    let counter = 0
-    for (let i = 0; i < vector1.length; i++) {
-        if (Math.abs(vector1[i] - vector2[i]) >= 1) counter++
-    }
-    return counter > 1
+    return vector1.elementwiseDifference(vector2) > 2
 }
 
 class ReverseFeedStream extends EventEmitter {
@@ -22,7 +17,6 @@ class ReverseFeedStream extends EventEmitter {
         this._relevantIndexNotSet = true
         this._key = key
         this._isOwnFeed = feed.writable
-        this.length = feed.length
         this._chatID = this._potasium.makeChatID(key, feed.key).toString('hex')
         this._setupHandlers()
     }
@@ -33,7 +27,8 @@ class ReverseFeedStream extends EventEmitter {
         this.getPrev((err, prev) => {
             if (err) return cb(err, null)
             let reference = prev.vector
-            this._extendChunk([prev], reference, cb)
+            let chunk = new FeedChunk(prev)
+            this._extendChunk(chunk, reference, cb)
         })
     }
 
@@ -49,7 +44,7 @@ class ReverseFeedStream extends EventEmitter {
                 this._cachedPrev = prev
                 return cb(null, chunk)
             } else {
-                chunk.push(prev)
+                chunk.extend(prev)
                 return this._extendChunk(chunk, prev.vector, cb)
             }
         })

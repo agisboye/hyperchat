@@ -1,7 +1,7 @@
 const { EventEmitter } = require('events')
 const promisify = require('util').promisify
 const ReverseFeedStream = require('./reverseFeedStream')
-const vectorClock = require('./vectorClock')
+const chunkComparator = require('./chunkComparator')
 
 class FeedMerger extends EventEmitter {
     constructor(potasium, key, feedsByPeers) {
@@ -17,8 +17,7 @@ class FeedMerger extends EventEmitter {
     /// or 'null' if end of stream is reached. 
     async getPrevAsync() {
         try {
-            let x = await this._promisifiedGetPrev()
-            return x
+            return await this._promisifiedGetPrev()
         } catch (err) {
             return null
         }
@@ -32,27 +31,22 @@ class FeedMerger extends EventEmitter {
     // 3) All the messages that are not the latest ones should be saved to next iteration in '_rest'
     // 4) Remove any unused metadata attached to each message
     _getPrev(cb) {
-        this._getAllPrevsEnumerated((enumeratedPrevs) => {
-            let maxes = vectorClock.max(enumeratedPrevs)
+        this._getAllChunksEnumerated((enumeratedChunks) => {
+            let { left, right, rest, restIndex } = chunkComparator.compare(enumeratedChunks)
 
-            if (maxes.length === 0) return cb(new Error('end of stream'), null)
+            if (!left && !right) return cb(new Error('end of stream'), null)
 
             // save the rest to next iteration
-            this._rest = enumeratedPrevs.filter(elem => !maxes.includes(elem))
+            this._rest = { index: restIndex, rest: rest }
 
-            // remove indices and other unused metadata
-            let res = maxes
-                .map(({ index: _, prev: prev }) => prev)
-                .map(message => this._removeUnusedMetaData(message))
-
-            return cb(null, res)
+            return cb(null, { left, right })
         })
     }
 
     /// Returns [{index, prev}] where prev: {message, sender, vector} from all streams. 
     /// 'index' shows which stream from '_streams' the message came from. 
-    _getAllPrevsEnumerated(cb) {
-        this._getAllPrevsEnumeratedHelper(0, [], cb)
+    _getAllChunksEnumerated(cb) {
+        this._getAllChunksEnumeratedHelper(0, [], cb)
     }
 
     /// Returns [{index, prev}] where prev: {message, sender, vector} from all streams. 
@@ -61,7 +55,7 @@ class FeedMerger extends EventEmitter {
     // How the algorithm runs: 
     // 1) Check in '_rest' if a message has been cached for the i'th stream. 
     // 2) Else get a fresh previous message from the i'th stream. 
-    _getAllPrevsEnumeratedHelper(i, res, cb) {
+    _getAllChunksEnumeratedHelper(i, res, cb) {
         // All streams have been traversed
         if (this._streams.length === i) return cb(res)
 
@@ -71,26 +65,26 @@ class FeedMerger extends EventEmitter {
             if (found) {
                 res.push(found)
                 i++
-                return this._getAllPrevsEnumeratedHelper(i, res, cb)
+                return this._getAllChunksEnumeratedHelper(i, res, cb)
             }
         }
 
         let stream = this._streams[i]
-        stream.getPrev((err, prev) => {
-            if (!err) res.push({ index: i, prev })
+        stream.getPrevChunk((err, chunk) => {
+            if (!err) res.push({ index: i, chunk: chunk })
             i++
-            this._getAllPrevsEnumeratedHelper(i, res, cb)
+            this._getAllChunksEnumeratedHelper(i, res, cb)
         })
     }
 
     // removes the vector time stamp from a message
-    _removeUnusedMetaData(data) {
-        return data
-        // return {
-        //     sender: data.sender,
-        //     message: data.message
-        // }
-    }
+    // _removeUnusedMetaData(data) {
+    //     return data
+    //     // return {
+    //     //     sender: data.sender,
+    //     //     message: data.message
+    //     // }
+    // }
 
     /// Sorts '_streams' lexiographically on their feed-key
     _sortStreams() {

@@ -27,9 +27,11 @@ chat.on('invite', (peerIDs) => {
     chat.acceptInvite(peerIDs)
 })
 
-chat.on('decryptedMessage', (message) => {
-    console.log('--------')
-    console.log('> message:', message)
+chat.on('decryptedMessage', (messages) => {
+    console.log('----- PAR ---')
+    console.log(messages.left.messages)
+    console.log(messages.right.messages)
+    console.log('-------------')
 })
 
 // function setupReadStreams() {

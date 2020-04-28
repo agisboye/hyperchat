@@ -1,4 +1,5 @@
 const crypto = require('./crypto')
+const Vector = require('./vector')
 
 class Potasium {
     constructor(feed, masterkeys) {
@@ -52,12 +53,13 @@ class Potasium {
     //TODO: How do we obtain all other peerIDs in the group only from 'peerID'? We need some kind of map here.
     decryptMessageUsingKey(ciphertext, key) {
         let res = crypto.decryptMessage(ciphertext, key)
+        if (!res) return null
 
-        return (res) ? JSON.parse(res.toString('utf-8')) : null
+        let parsed = JSON.parse(res.toString('utf-8'))
+        // convert [int] to Vector
+        parsed.vector = new Vector(parsed.vector)
+        return parsed
     }
-    /*
-        Private API
-    */
 }
 
 module.exports = Potasium
