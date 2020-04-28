@@ -4,7 +4,7 @@ const FeedChunk = require('./feedChunk')
 
 //TODO: Find a better way to find out if we have reached the end of a chunk.
 function reachedEndOfChunk(vector1, vector2) {
-    return vector1.elementwiseDifference(vector2) > 2
+    return vector1.moreThan2ElementsDifferBy1(vector2)
 }
 
 class ReverseFeedStream extends EventEmitter {

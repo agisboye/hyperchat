@@ -28,10 +28,14 @@ chat.on('invite', (peerIDs) => {
 })
 
 chat.on('decryptedMessage', (messages) => {
-    console.log('----- PAR ---')
-    console.log(messages.left.messages)
-    console.log(messages.right.messages)
-    console.log('-------------')
+    if (messages.left && messages.right) {
+        console.log('----- PAR ---')
+        console.log(messages.left.messages)
+        console.log(messages.right.messages)
+    } else {
+        console.log('-------------')
+        console.log(messages)
+    }
 })
 
 // function setupReadStreams() {

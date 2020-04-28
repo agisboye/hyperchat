@@ -42,8 +42,8 @@ class FeedChunk {
         // Split aronud reference. 
         
         return {
-            newer: new FeedChunk(this._content.slice(0, splitIndex + 1)), 
-            older: new FeedChunk(this._content.slice(splitIndex + 1))
+            newer: new FeedChunk(this._content.slice(0, splitIndex)), 
+            older: new FeedChunk(this._content.slice(splitIndex))
         }
     }
 

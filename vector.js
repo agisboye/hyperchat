@@ -45,6 +45,15 @@ class Vector {
         return totalDiff
     }
 
+    moreThan2ElementsDifferBy1(other) {
+        let counter = 0
+        for (let i = 0; i < this.length; i++) {
+            if (Math.abs(this._array[i] - other._array[i]) > 0) counter++
+            if (counter == 2) return true
+        }
+        return false
+    }
+
 }
 
 module.exports = Vector
