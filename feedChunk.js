@@ -5,6 +5,9 @@ class FeedChunk {
         else this._content = [input]
     }
 
+    get length() {
+        return this._content.length
+    }
     get messages() {
         return this._content.map(data => {
             return {
@@ -13,6 +16,10 @@ class FeedChunk {
                 vector: data.vector._array
             }
         })
+    }
+
+    get _vectors() {
+        return this._content.map(message => message.vector)
     }
 
     extend(message) {
@@ -40,8 +47,16 @@ class FeedChunk {
         }
     }
 
-    get _vectors() {
-        return this._content.map(message => message.vector)
+    isOlderThan(otherChunk) {
+        return this.newest().vector.leq(otherChunk.oldest().vector)
+    }
+
+    isNewerThan(otherChunk) {
+        return this.oldest().vector.geq(otherChunk.newest().vector)
+    }
+
+    overlapsWith(otherChunk) {
+        return this.oldest().vector.leq(otherChunk.newest().vector) && otherChunk.oldest().vector.leq(this.newest().vector)
     }
 }
 

@@ -32,12 +32,14 @@ class FeedMerger extends EventEmitter {
     // 4) Remove any unused metadata attached to each message
     _getPrev(cb) {
         this._getAllChunksEnumerated((enumeratedChunks) => {
+            if (enumeratedChunks.length === 0) return cb(new Error('end of stream'), null)
+
             let { left, right, rest, restIndex } = chunkComparator.compare(enumeratedChunks)
 
-            if (!left && !right) return cb(new Error('end of stream'), null)
-
             // save the rest to next iteration
-            this._rest = { index: restIndex, rest: rest }
+            if (rest.length > 0) {
+                this._rest = { index: restIndex, chunk: rest }
+            }
 
             return cb(null, { left, right })
         })
@@ -60,13 +62,11 @@ class FeedMerger extends EventEmitter {
         if (this._streams.length === i) return cb(res)
 
         // Search in '_rest' before searching through streams. 
-        if (this._rest) {
-            let found = (this._rest.find(({ index, _ }) => i === index))
-            if (found) {
-                res.push(found)
-                i++
-                return this._getAllChunksEnumeratedHelper(i, res, cb)
-            }
+        if (this._rest && this._rest.index === i) {
+            res.push(this._rest)
+            this._rest = null
+            i++
+            return this._getAllChunksEnumeratedHelper(i, res, cb)
         }
 
         let stream = this._streams[i]

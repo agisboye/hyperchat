@@ -1,3 +1,5 @@
+const FeedChunk = require('./feedChunk')
+
 // const LEQ = 1
 // const GEQ = 2
 // const PAR = 3
@@ -53,18 +55,39 @@
 
 //TODO: Refactor out of vectorclock
 function compare(enumeratedChunks) {
+    if (enumeratedChunks.length === 1) return case0(enumeratedChunks[0].chunk)
+
     let chunk1 = enumeratedChunks[0].chunk
     let chunk2 = enumeratedChunks[1].chunk
-    chunk2Index = enumeratedChunks[1].index
-    return case2(chunk1, chunk2, chunk2Index)
+    let chunk1Index = enumeratedChunks[0].index
+    let chunk2Index = enumeratedChunks[1].index
+
+    if (chunk1.overlapsWith(chunk2)) {
+        return case2(chunk1, chunk2, chunk2Index)
+    } else if (chunk1.isNewerThan(chunk2)) {
+        return case1(chunk1, chunk2, chunk2Index)
+    } else {
+        // chunk1 is newer than chunk2
+        return case1(chunk2, chunk1, chunk1Index)
+    }
 }
 
-// CASE 1 is assumed
-function case1(chunk1, chunk2) {
+function case0(chunk) {
     return {
-        left: range(0, chunk1.length),
-        right: [],
-        rest: range(0, chunk2.length)
+        left: chunk,
+        right: new FeedChunk([]),
+        rest: new FeedChunk([]), 
+        restIndex: null
+    }
+}
+
+// Assumes chunk1 is newer than chunk2
+function case1(chunk1, chunk2, chunk2Index) {
+    return {
+        left: chunk1,
+        right: new FeedChunk([]),
+        rest: chunk2, 
+        restIndex: chunk2Index
     }
 }
 
@@ -76,34 +99,10 @@ function case2(chunk1, chunk2, chunk2Index) {
     return {
         left: chunk1,
         right: newer,
-        rest: older, 
+        rest: older,
         restIndex: chunk2Index
     }
 }
-
-// CASE 2 is assumed
-// Split c2 into {before: [indices], after: [indices]} based on 'reference' vector.
-function splitChunkUsingReference(reference, c2) {
-    let splitIndex = c2.findIndex((vector) => compare(vector, reference) === LEQ)
-
-    return {
-        before: range(splitIndex, c2.length),
-        after: range(0, splitIndex)
-    }
-}
-
-
-// Works like pythons 'range' with step = 1
-function range(start, stop) {
-    var result = []
-    for (var i = start; i < stop; i += 1) {
-        result.push(i)
-    }
-    return result
-}
-
-
-
 
 module.exports = {
     compare
