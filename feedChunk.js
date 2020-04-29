@@ -38,7 +38,7 @@ class FeedChunk {
     //TODO: handle case where there is no split index. May be used to determine 
     // if we are in case 1 or 2? (i.e we should always split)
     splitBy(reference) {
-        let splitIndex = this._content.findIndex((message) => message.vector.par(reference))
+        let splitIndex = this._content.findIndex((message) => message.vector.geq(reference))
         
         // Split aronud reference. 
         
@@ -56,19 +56,18 @@ class FeedChunk {
         return this.oldest.geq(other.newest)
     }
 
-    //TODO: Delete
-    overlapsWith(otherChunk) {
-        return this.oldest.leq(otherChunk.newest) && otherChunk.oldest.leq(this.newest)
+    isParallelWith(other) {
+        return this.newest.par(other.newest) && this.oldest.par(other.oldest)
     }
 
     // 'this' is smaller than 'other'
     isOverlapping(other) {
-        return this.oldest.geqPar(other.oldest) && this.newest.leqPar(other.newest)
+        return this.oldest.par(other.oldest) && this.newest.par(other.newest)
     }
 
     // 'this' is larger than 'other'
     isOverlappedBy(other) {
-        return this.oldest.leq(other.oldest) && this.newest.geq(other.newest)
+        return this.oldest.leq(other.oldest) && this.newest.par(other.newest)
     }
 }
 

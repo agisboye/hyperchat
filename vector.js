@@ -37,10 +37,12 @@ class Vector {
         return this._compareTo(other) === PAR
     }
 
+    //TODO: Delete?
     geqPar(other) {
         return this.geq(other) || this.par(other)
     }
 
+    //TODO: Delete?
     leqPar(other) {
         return this.leq(other) || this.par(other)
     }
