@@ -1,5 +1,5 @@
 const hypercore = require('hypercore')
-
+const promisify = require('util').promisify
 /**
  * Responsible for ensuring that all feeds are ready for use and to keep track of all feed lengths
  */
@@ -10,6 +10,7 @@ class FeedManager {
 
         /// known peers. Keyed by feed public key (hex-string)
         this._feeds = {}
+        this._getFeedsByPeersForGroupAsync = promisify(this._getFeedsByPeersForGroup).bind(this)
     }
 
     /**
@@ -22,7 +23,7 @@ class FeedManager {
 
         const feed = this._feeds[peer.id]
         if (feed) return cb(feed)
-
+ 
         this._addFeed(peer, () => {
             cb(this._feeds[peer.id])
         })
@@ -34,37 +35,38 @@ class FeedManager {
      * @param {Group} group 
      * @param {*} cb 
      */
-    getFeedsByPeersForGroup(group, cb) {
+    async getFeedsByPeersForGroup(group) {
         let peers = [... new Set(group.peers)]
-        this._getFeedsByPeersForGroup(peers, [], cb)
+        try {
+            return await this._getFeedsByPeersForGroupAsync(peers, [])
+        } catch (err) {
+            return null
+        }
     }
 
-    _getFeedsByPeersForGroup(peers, feedsByPeers, cb) {
-        if (peers.length === 0) return cb(feedsByPeers)
+    _getFeedsByPeersForGroup(group, feedsByPeers, cb) {
+        if (group.length === 0) return cb(null, feedsByPeers)
 
         let peer = group.shift()
         this.getFeed(peer, feed => {
             feedsByPeers.push({ peer, feed })
-        let peerID = group.shift()
-        this.getFeed(peerID, feed => {
-            feedsByPeers.push({ peerID, feed })
             this._getFeedsByPeersForGroup(group, feedsByPeers, cb)
         })
     }
 
-    getLengthByKeysOfFeeds(peerIDs, cb) {
-        // We clone to avoid side effects of modifying peerIDs
-        let peerIDsClone = [...peerIDs]
-        this._getLengthByKeysOfFeeds(peerIDsClone, [], cb)
+    getLengthByKeysOfFeeds(group, cb) {
+        // We clone to avoid side effects of modifying group
+        let peers = [...group.peers]
+        this._getLengthByKeysOfFeeds(peers, [], cb)
     }
 
-    _getLengthByKeysOfFeeds(peerIDs, keysAndLengths, cb) {
-        if (peerIDs.length === 0) return cb(this._sortLengthsAndKeysByKeys(keysAndLengths))
+    _getLengthByKeysOfFeeds(group, keysAndLengths, cb) {
+        if (group.length === 0) return cb(this._sortLengthsAndKeysByKeys(keysAndLengths))
 
-        const peer = peers.shift()
+        const peer = group.shift()
         this._getLengthOf(peer, (res) => {
             keysAndLengths.push(res)
-            this._getLengthByKeysOfFeeds(peerIDs, keysAndLengths, cb)
+            this._getLengthByKeysOfFeeds(group, keysAndLengths, cb)
         })
     }
 

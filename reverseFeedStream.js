@@ -1,6 +1,6 @@
 const { EventEmitter } = require('events')
 const FeedChunk = require('./feedChunk')
-
+const crypto = require('./crypto')
 
 //TODO: Find a better way to find out if we have reached the end of a chunk.
 function reachedEndOfChunk(vector1, vector2) {
@@ -17,7 +17,7 @@ class ReverseFeedStream extends EventEmitter {
         this._relevantIndexNotSet = true
         this._key = key
         this._isOwnFeed = feed.writable
-        this._chatID = this._potasium.makeChatID(key, feed.key).toString('hex')
+        this._chatID = crypto.makeChatID(key, feed.key).toString("hex")
         this._setupHandlers()
     }
 

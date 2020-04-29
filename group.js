@@ -1,5 +1,5 @@
 const crypto = require("./crypto")
-
+const Peer = require('./peer')
 class Group {
 
     /**

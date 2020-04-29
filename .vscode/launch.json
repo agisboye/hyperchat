@@ -46,6 +46,18 @@
         {
             "type": "node",
             "request": "launch",
+            "name": "Launch as B",
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "program": "${workspaceFolder}/main.js",
+            "args": [
+                "B",
+            ]
+        },
+        {
+            "type": "node",
+            "request": "launch",
             "name": "Launch test",
             "skipFiles": [
                 "<node_internals>/**"

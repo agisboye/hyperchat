@@ -37,17 +37,22 @@ chat.on('decryptedMessage', (messages) => {
 
 chat.on(Events.PEERS_CHANGED, peers => {
     setupReadStreams(false)
+})
 
 const messageCallback = result => {
-    if (!Array.isArray(result)) result = [result] // TODO: Workaround since result can be either a single msg or an array of msgs.
-    for (let message of result) {
-        console.log(`[${message.sender}]: ${message.message}`)
+    if (result.left && result.right) {
+        console.log('--- PAR ----')
+        console.log(result.left)
+        console.log(result.right)
+    } else {
+        console.log('------------')
+        console.log(result)
     }
 }
 
 let streams = []
 
-function setupReadStreams(printAll = false) {
+async function setupReadStreams(printAll = false) {
 
     // Remove existing listeners
     streams.forEach(s => s.off("data", messageCallback))
@@ -55,12 +60,11 @@ function setupReadStreams(printAll = false) {
 
     // Add new listeners
     for (let group of chat.groups) {
-        chat.getReadStream(group, (error, stream) => {
-            if (error) return console.log("Error setting up read stream", error)
-            stream.on("data", messageCallback)
-            streams.push(stream)
-            if (printAll) drain(stream)
-        })
+        let stream = await chat.getReadStream(group)
+        if (!stream) return console.log("Error setting up read stream", error)
+        stream.on("data", messageCallback)
+        streams.push(stream)
+        if (printAll) drain(stream)
     }
 }
 
@@ -77,11 +81,7 @@ async function drain(stream) {
 process.stdin.on('data', data => {
 
     let message = data.toString('utf-8')
-    if (peers.length === 0) {
-        let group = chat.groups[0]
-        chat.sendMessageTo(group, message)
-    } else {
-        chat.sendMessageTo(peers, message)
-    }
+    let group = chat.groups[0]
+    chat.sendMessageTo(group, message)
 })
 

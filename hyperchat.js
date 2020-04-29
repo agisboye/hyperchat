@@ -27,23 +27,23 @@ class Hyperchat extends EventEmitter {
 
     constructor(name) {
         super()
-        
+
         let path = './feeds/' + name + '/'
 
         this._keychain = new Keychain(name)
-        
+
         let keyPair = this._keychain.myKeypair
         this.me = new Peer(keyPair.publicKey)
         this._peerPersistence = new PeerPersistence(name)
         this._pendingInvites = new PendingInvites(this.me)
-        
+
         this._swarm = hyperswarm()
         this._protocolKeyPair = Protocol.keyPair()
-        
+
         this._feed = hypercore(
             path + keyPair.publicKey.toString("hex"),
             keyPair.publicKey,
-            { 
+            {
                 valueEncoding: 'json',
                 secretKey: keyPair.secretKey
             }
@@ -65,7 +65,7 @@ class Hyperchat extends EventEmitter {
             console.log(`${peer} is offline`)
             this.emit(Events.PEERS_CHANGED, this.peers)
         })
-        
+
     }
 
     /** Public API **/
@@ -146,7 +146,7 @@ class Hyperchat extends EventEmitter {
         this._feedsManager.getLengthByKeysOfFeeds(group, keysAndLengths => {
             let key = this._keychain.getGroupKey(group)
             this._potasium.createEncryptedMessage(content, keysAndLengths, key, (message) => {
-        
+
                 this._feed.append(message, err => {
                     if (err) throw err
                 })
@@ -160,13 +160,12 @@ class Hyperchat extends EventEmitter {
      * @param {Group} group
      * @param {Function} callback - Takes an error and a stream argument.
      */
-    getReadStream(group, callback) {
+    async getReadStream(group) {
         let key = this._keychain.getGroupKey(group)
+
+        let feedsByPeers = await this._feedsManager.getFeedsByPeersForGroup(group)
+        return new FeedMerger(this._potasium, key, feedsByPeers)
         
-        this._feedsManager.getFeedsByPeersForGroup(group, feedsByPeers => {
-            let merger = new FeedMerger(this._potasium, key, feedsByPeers)
-            callback(null, merger)
-        })
     }
 
     /** Private API **/
@@ -198,7 +197,7 @@ class Hyperchat extends EventEmitter {
             ondiscoverykey: (discoveryKey) => {
                 console.log("ondiscoverykey")
                 let peer = this._peerPersistence.getPeerForDiscoveryKey(discoveryKey)
-                
+
                 if (peer) {
                     // If we have this topic among our known peers, we replicate it.
                     this._replicate(peer, stream)
@@ -238,7 +237,7 @@ class Hyperchat extends EventEmitter {
                 switch (message.type) {
                     case HYPERCHAT_PROTOCOL_INVITE:
                         // TODO: Verify that invite contains a verified peer
-                        
+
                         const peers = message.data.peers.map(p => new Peer(p))
                         const group = new Group(peers)
                         const key = Buffer.from(message.data.key, "hex")

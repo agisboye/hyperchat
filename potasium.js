@@ -6,7 +6,7 @@ class Potasium {
         this._feed = feed
     }
 
-    createEncryptedMessage(plaintext, vector, key, cb) {
+    createEncryptedMessage(plaintext, lengthsAndKeys, key, cb) {
         let internalMessage = {
             vector: this._makeTimestamp(lengthsAndKeys),
             message: plaintext
