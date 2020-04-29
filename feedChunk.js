@@ -26,18 +26,19 @@ class FeedChunk {
         this._content.push(message)
     }
 
-    newest() {
-        return this._content[0]
+    get newest() {
+        return this._content[0].vector
     }
 
-    oldest() {
-        return this._content[this._content.length - 1]
+
+    get oldest() {
+        return this._content[this._content.length - 1].vector
     }
 
     //TODO: handle case where there is no split index. May be used to determine 
     // if we are in case 1 or 2? (i.e we should always split)
     splitBy(reference) {
-        let splitIndex = this._content.findIndex((message) => message.vector.leq(reference.vector))
+        let splitIndex = this._content.findIndex((message) => message.vector.par(reference))
         
         // Split aronud reference. 
         
@@ -47,16 +48,27 @@ class FeedChunk {
         }
     }
 
-    isOlderThan(otherChunk) {
-        return this.newest().vector.leq(otherChunk.oldest().vector)
+    isOlderThan(other) {
+        return this.newest.leq(other.oldest)
     }
 
-    isNewerThan(otherChunk) {
-        return this.oldest().vector.geq(otherChunk.newest().vector)
+    isNewerThan(other) {
+        return this.oldest.geq(other.newest)
     }
 
+    //TODO: Delete
     overlapsWith(otherChunk) {
-        return this.oldest().vector.leq(otherChunk.newest().vector) && otherChunk.oldest().vector.leq(this.newest().vector)
+        return this.oldest.leq(otherChunk.newest) && otherChunk.oldest.leq(this.newest)
+    }
+
+    // 'this' is smaller than 'other'
+    isOverlapping(other) {
+        return this.oldest.geqPar(other.oldest) && this.newest.leqPar(other.newest)
+    }
+
+    // 'this' is larger than 'other'
+    isOverlappedBy(other) {
+        return this.oldest.leq(other.oldest) && this.newest.geq(other.newest)
     }
 }
 

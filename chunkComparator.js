@@ -62,7 +62,9 @@ function compare(enumeratedChunks) {
     let chunk1Index = enumeratedChunks[0].index
     let chunk2Index = enumeratedChunks[1].index
 
-    if (chunk1.overlapsWith(chunk2)) {
+    if (chunk1.isOverlappedBy(chunk2)) {
+        return case2(chunk2, chunk1, chunk1Index)
+    } else if (chunk1.isOverlapping(chunk2)) {
         return case2(chunk1, chunk2, chunk2Index)
     } else if (chunk1.isNewerThan(chunk2)) {
         return case1(chunk1, chunk2, chunk2Index)
@@ -76,7 +78,7 @@ function case0(chunk) {
     return {
         left: chunk,
         right: new FeedChunk([]),
-        rest: new FeedChunk([]), 
+        rest: new FeedChunk([]),
         restIndex: null
     }
 }
@@ -86,14 +88,14 @@ function case1(chunk1, chunk2, chunk2Index) {
     return {
         left: chunk1,
         right: new FeedChunk([]),
-        rest: chunk2, 
+        rest: chunk2,
         restIndex: chunk2Index
     }
 }
 
 // CASE 2 is assumed (chunk1 splits chunk2)
 function case2(chunk1, chunk2, chunk2Index) {
-    let reference = chunk1.newest()
+    let reference = chunk1.newest
     let { newer, older } = chunk2.splitBy(reference)
 
     return {
