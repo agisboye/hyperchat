@@ -37,16 +37,6 @@ class Vector {
         return this._compareTo(other) === PAR
     }
 
-    //TODO: Delete?
-    geqPar(other) {
-        return this.geq(other) || this.par(other)
-    }
-
-    //TODO: Delete?
-    leqPar(other) {
-        return this.leq(other) || this.par(other)
-    }
-
     elementwiseDifference(other) {
         let totalDiff = 0
         for (let i = 0; i < this.length; i++) {
