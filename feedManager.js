@@ -40,30 +40,31 @@ class FeedManager {
 
         let peerID = group.shift()
         this.getFeed(peerID, feed => {
-            feedsByPeers.push({peerID, feed})
+            feedsByPeers.push({ peerID, feed })
             this._getFeedsByPeersForGroup(group, feedsByPeers, cb)
         })
     }
 
-    getLengthsOfFeeds(peerIDs, cb) {
+    getLengthByKeysOfFeeds(peerIDs, cb) {
         // We clone to avoid side effects of modifying peerIDs
         let peerIDsClone = [...peerIDs]
-        this._getLengthsOfFeeds(peerIDsClone, [], cb)
+        this._getLengthByKeysOfFeeds(peerIDsClone, [], cb)
     }
 
-    _getLengthsOfFeeds(peerIDs, keysAndLengths, cb) {
-        if (peerIDs.length === 0) return cb(this._sortLengthsByKeys(keysAndLengths))
+    _getLengthByKeysOfFeeds(peerIDs, keysAndLengths, cb) {
+        if (peerIDs.length === 0) return cb(this._sortLengthsAndKeysByKeys(keysAndLengths))
 
         let head = peerIDs.shift()
         this._getLengthOf(head, (res) => {
             keysAndLengths.push(res)
-            this._getLengthsOfFeeds(peerIDs, keysAndLengths, cb)
+            this._getLengthByKeysOfFeeds(peerIDs, keysAndLengths, cb)
         })
     }
 
-    _sortLengthsByKeys(keysAndLengths) {
+    _sortLengthsAndKeysByKeys(keysAndLengths) {
         keysAndLengths.sort((a, b) => a.feedkey.localeCompare(b.feedkey))
-        return keysAndLengths.map(({feedkey, length}) => length)
+        keysAndLengths = keysAndLengths.map(({ feedkey, length }) => ({ feedkey: Buffer.from(feedkey, 'hex'), length: length }))
+        return keysAndLengths
     }
 
     _getLengthOf(peerID, cb) {

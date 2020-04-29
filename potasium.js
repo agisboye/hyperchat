@@ -21,9 +21,9 @@ class Potasium {
         return crypto.answerChallenge(ciphertext, this._sk, this._pk)
     }
 
-    createEncryptedMessage(plaintext, vector, key, cb) {
+    createEncryptedMessage(plaintext, lengthsAndKeys, key, cb) {
         let internalMessage = {
-            vector: vector, 
+            vector: this._makeTimestamp(lengthsAndKeys),
             message: plaintext
         }
 
@@ -59,6 +59,15 @@ class Potasium {
         // convert [int] to Vector
         parsed.vector = new Vector(parsed.vector)
         return parsed
+    }
+
+    _makeTimestamp(keysAndLengths) {
+        // We need to add 1 to our own feed length before appending the message (vector clock invariant)
+        let vector = keysAndLengths.map(({ feedkey, length }) => length)
+        let indexOfOwnKey = keysAndLengths.findIndex(({ feedkey, length }) => this._feed.key.equals(feedkey))
+
+        vector[indexOfOwnKey] = vector[indexOfOwnKey] + 1
+        return vector
     }
 }
 

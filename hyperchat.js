@@ -117,9 +117,9 @@ class Hyperchat extends EventEmitter {
     }
 
     sendMessageTo(group, content) {
-        this._feedsManager.getLengthsOfFeeds(group, lenghts => {
+        this._feedsManager.getLengthByKeysOfFeeds(group, keysAndLengths => {
             let key = this._keychain.getKeyForGroup(group)
-            this._potasium.createEncryptedMessage(content, lenghts, key, message => {
+            this._potasium.createEncryptedMessage(content, keysAndLengths, key, message => {
                 this._feed.append(message, err => {
                     if (err) throw err
                 })
