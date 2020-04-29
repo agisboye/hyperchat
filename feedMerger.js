@@ -6,7 +6,7 @@ const chunkComparator = require('./chunkComparator')
 class FeedMerger extends EventEmitter {
     constructor(potasium, key, feedsByPeers) {
         super()
-        this._streams = feedsByPeers.map(({ peerID, feed }) => new ReverseFeedStream(potasium, feed, peerID, key))
+        this._streams = feedsByPeers.map(({ peer, feed }) => new ReverseFeedStream(potasium, feed, peer, key))
         this._sortStreams()
         this._streams.forEach(stream => stream.on('data', data => this.emit('data', data)))
 

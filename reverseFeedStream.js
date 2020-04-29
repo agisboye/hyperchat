@@ -8,10 +8,10 @@ function reachedEndOfChunk(vector1, vector2) {
 }
 
 class ReverseFeedStream extends EventEmitter {
-    constructor(ownPotasium, feed, peerID, key) {
+    constructor(ownPotasium, feed, peer, key) {
         super()
         this.feed = feed
-        this._peerID = peerID
+        this.peer = peer
         this._relevantIndex = feed.length - 1 // start at head index
         this._potasium = ownPotasium
         this._relevantIndexNotSet = true
@@ -66,7 +66,7 @@ class ReverseFeedStream extends EventEmitter {
                 this._relevantIndex = this.feed.length - 1
                 this._relevantIndexNotSet = false
             }
-            if (this._relevantIndex < 0 || this._relevantIndex === undefined) return cb(new Error("end of stream"), null)
+            if (this._relevantIndex === undefined || this._relevantIndex < 0) return cb(new Error("end of stream"), null)
 
             if (this._relevantIndex === this.feed.length - 1) {
                 // Base case: We need to find the index of the first message relevant for us.
@@ -87,7 +87,7 @@ class ReverseFeedStream extends EventEmitter {
     /// Returns (err, prev) via callback where prev: { message, sender, vector } 
     /// Precondition: '_relevantIndex' has been correctly set. 
     _getDecryptedMessageOfRelevantIndex(cb) {
-        if (this._relevantIndex < 0 || this._relevantIndex === undefined) return cb(new Error("end of stream"), null)
+        if (this._relevantIndex === undefined || this._relevantIndex < 0) return cb(new Error("end of stream"), null)
 
         this.feed.get(this._relevantIndex, (err, currentMessage) => {
             if (err) return cb(err, null)
@@ -156,7 +156,7 @@ class ReverseFeedStream extends EventEmitter {
     _decryptAndAddMetaData(ciphertext) {
         let decrypted = this._potasium.decryptMessageUsingKey(Buffer.from(ciphertext, 'hex'), this._key)
         if (decrypted) {
-            decrypted['sender'] = this._peerID.toString('hex').substring(0, 5) + "..."
+            decrypted['sender'] = this.peer.toString()
             return decrypted
         } else {
             return null

@@ -1,39 +1,49 @@
 class OnlineIndicator {
-    constructor(onOnLine, onOffline) {
-        this._onOnline = onOnLine
+    constructor(onOnline, onOffline) {
+        this._onOnline = onOnline
         this._onOffline = onOffline
-        this._peers = {}
+        this._counts = {}
     }
 
+    /**
+     * 
+     * @param {Peer} peer 
+     * @returns {Boolean}
+     */
     isOnline(peer) {
-        if (Buffer.isBuffer(peer)) return this.isOnline(peer.toString('hex'))
-        return this._peers[peer] >= 1
+        return this._counts[peer.id] >= 1
     }
 
+    /**
+     * 
+     * @param {Peer} peer 
+     */
     increment(peer) {
-        // convert peer to hex string
-        if (Buffer.isBuffer(peer)) return this.increment(peer.toString('hex'))
-
-        let counter = this._peers[peer]
-        if (counter) {
-            this._peers[peer] = counter + 1
+        let key = peer.id
+        let count = this._counts[key]
+        if (count) {
+            this._counts[key] = count + 1
         } else {
-            this._peers[peer] = 1
+            this._counts[key] = 1
             this._onOnline(peer)
         }
+
+        return this._counts[key]
     }
 
+    /**
+     * 
+     * @param {Peer} peer 
+     */
     decrement(peer) {
-        // convert peer to hex string
-        if (Buffer.isBuffer(peer)) return this.decrement(peer.toString('hex'))
+        let key = peer.id
+        let count = this._counts[key]
 
-        let counter = this._peers[peer]
-
-        if (counter === 1) {
-            delete this._peers[peer]
+        if (count === 1) {
+            delete this._counts[key]
             this._onOffline(peer)
-        } else if (counter > 1) {
-            this._peers[peer] = counter - 1
+        } else if (count > 1) {
+            this._counts[key] = count - 1
         }
     }
 }
