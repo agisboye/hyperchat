@@ -65,7 +65,7 @@ function compare(enumeratedChunks) {
     let chunk2Index = enumeratedChunks[1].index
 
     if(chunk1.isParallelWith(chunk2)) {
-        return case3(chunk1, chunk2)
+        return case3(chunk1, chunk2) 
     } else if (chunk1.isOverlappedBy(chunk2)) {
         return case2(chunk2, chunk1, chunk1Index)
     } else if (chunk1.isOverlapping(chunk2)) {

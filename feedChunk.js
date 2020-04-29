@@ -62,7 +62,7 @@ class FeedChunk {
 
     // 'this' is smaller than 'other'
     isOverlapping(other) {
-        return this.oldest.par(other.oldest) && this.newest.par(other.newest)
+        return this.oldest.geq(other.oldest) && this.oldest.par(other.newest)
     }
 
     // 'this' is larger than 'other'
