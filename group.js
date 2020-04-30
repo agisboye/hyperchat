@@ -1,4 +1,5 @@
 const crypto = require("./crypto")
+const Peer = require("./peer")
 
 class Group {
 
@@ -24,6 +25,15 @@ class Group {
         const hash = crypto.hash(concatenation)
 
         return hash.toString("hex")
+    }
+
+    /**
+     * Determines whether the group contains a given peer.
+     * @param {Peer} peer 
+     * @returns {boolean}
+     */
+    contains(peer) {
+        return this.peers.find(p => p.equals(peer)) !== undefined
     }
 
     toString() {
