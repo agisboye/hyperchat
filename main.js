@@ -74,7 +74,6 @@ async function drain(stream) {
     }
 }
 
-
 /* User input */
 process.stdin.on('data', data => {
 

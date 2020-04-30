@@ -165,7 +165,7 @@ class Hyperchat extends EventEmitter {
 
         let feedsByPeers = await this._feedsManager.getFeedsByPeersForGroup(group)
         return new FeedMerger(this._potasium, key, feedsByPeers)
-        
+
     }
 
     /** Private API **/
@@ -185,7 +185,7 @@ class Hyperchat extends EventEmitter {
     }
 
     _onConnection(socket, details) {
-        
+
         const stream = new Protocol(details.client, {
             keyPair: this._protocolKeyPair,
             onhandshake: () => {
@@ -201,7 +201,7 @@ class Hyperchat extends EventEmitter {
                     // If we have this topic among our known peers, we replicate it.
                     this._replicate(peer, stream)
 
-                    
+
                     // If the peer has sent a capability for  their key, we know that they
                     // are the owner.                    
                     if (stream.remoteVerified(peer.pubKey)) {
@@ -241,17 +241,19 @@ class Hyperchat extends EventEmitter {
 
                         // Ensure that the inviting peer is in the group that they are inviting to.
                         const pubKeys = message.data.peers.map(p => Buffer.from(p, "hex"))
-                        const verified = pubKeys.find(k => stream.remoteVerified(k)) !== undefined
+                        const invitingPeerIndex = pubKeys.findIndex(k => stream.remoteVerified(k) && !this.me.pubKey.equals(k))
+                        const verified = invitingPeerIndex !== -1
 
                         console.log("Invite received. Remote verified: ", verified)
                         if (!verified) return
-                        
+
                         const peers = pubKeys.map(p => new Peer(p))
                         const group = new Group(peers)
 
                         // Save group and key
                         const key = Buffer.from(message.data.key, "hex")
                         this._keychain.saveGroupKey(key, group)
+                        this._inviteStreams[peers[invitingPeerIndex].id] = stream
 
                         this.emit(Events.INVITE, group)
 
