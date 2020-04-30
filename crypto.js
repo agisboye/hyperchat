@@ -63,5 +63,6 @@ module.exports = {
     generateSymmetricKey,
     makeChatID,
     encryptMessage,
-    decryptMessage
+    decryptMessage,
+    KEY_LENGTH: sodium.crypto_secretbox_KEYBYTES
 }

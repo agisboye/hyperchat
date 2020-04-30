@@ -185,14 +185,13 @@ class Hyperchat extends EventEmitter {
     }
 
     _onConnection(socket, details) {
+        
         const stream = new Protocol(details.client, {
-            timeout: false, // TODO: ?
             keyPair: this._protocolKeyPair,
             onhandshake: () => {
-                // Drop connection if it is already established
-                let connectionIsDropped = details.deduplicate(stream.publicKey, stream.remotePublicKey)
-                console.log("onhandshake,", connectionIsDropped)
-                if (connectionIsDropped) return
+                // Drop duplicate connections
+                let dropped = details.deduplicate(stream.publicKey, stream.remotePublicKey)
+                console.log("onhandshake, dropped connection: ", dropped)
             },
             ondiscoverykey: (discoveryKey) => {
                 console.log("ondiscoverykey")
@@ -202,16 +201,19 @@ class Hyperchat extends EventEmitter {
                     // If we have this topic among our known peers, we replicate it.
                     this._replicate(peer, stream)
 
+                    
                     // If the peer has sent a capability for  their key, we know that they
                     // are the owner.                    
                     if (stream.remoteVerified(peer.pubKey)) {
+                        console.log(`Remote verified ${peer}`)
+
                         const count = this._onlineIndicator.increment(peer)
 
                         // TODO: Make this prettier
                         if (count === 1) {
                             const invites = this._pendingInvites.getPendingInvites(peer)
                             for (let invite of invites) {
-                                ext.send({
+                                extension.send({
                                     type: HYPERCHAT_PROTOCOL_INVITE,
                                     data: invite
                                 })
@@ -230,16 +232,24 @@ class Hyperchat extends EventEmitter {
             }
         })
 
-        const ext = stream.registerExtension(HYPERCHAT_EXTENSION, {
+        const extension = stream.registerExtension(HYPERCHAT_EXTENSION, {
             encoding: 'json',
             onmessage: (message) => {
 
                 switch (message.type) {
                     case HYPERCHAT_PROTOCOL_INVITE:
-                        // TODO: Verify that invite contains a verified peer
 
-                        const peers = message.data.peers.map(p => new Peer(p))
+                        // Ensure that the inviting peer is in the group that they are inviting to.
+                        const pubKeys = message.data.peers.map(p => Buffer.from(p, "hex"))
+                        const verified = pubKeys.find(k => stream.remoteVerified(k)) !== undefined
+
+                        console.log("Invite received. Remote verified: ", verified)
+                        if (!verified) return
+                        
+                        const peers = pubKeys.map(p => new Peer(p))
                         const group = new Group(peers)
+
+                        // Save group and key
                         const key = Buffer.from(message.data.key, "hex")
                         this._keychain.saveGroupKey(key, group)
 
@@ -252,6 +262,8 @@ class Hyperchat extends EventEmitter {
                 }
             }
         })
+
+        console.log("Topics: ", details.topics.map(b => b.toString("hex").substring(0, 6)))
 
         this._replicate(this.me, stream)
         pump(stream, socket, stream)

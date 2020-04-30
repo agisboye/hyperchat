@@ -26,6 +26,15 @@ class Group {
         return hash.toString("hex")
     }
 
+    /**
+     * Determines whether the group contains a given peer.
+     * @param {Peer} peer 
+     * @returns {boolean}
+     */
+    contains(peer) {
+        return this.peers.find(p => p.equals(peer)) !== undefined
+    }
+
     toString() {
         let str = "[" + this.id.toString("hex") + "] "
         str += this.peers.reduce((acc, peer) => acc + peer.id.substring(0, 6) + ".. ,")
