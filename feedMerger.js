@@ -8,7 +8,9 @@ class FeedMerger extends EventEmitter {
         super()
         this._streams = feedsByPeers.map(({ peer, feed }) => new ReverseFeedStream(potasium, feed, peer, key))
         this._sortStreams()
-        this._streams.forEach(stream => stream.on('data', data => this.emit('data', data)))
+        this._streams.forEach(stream => stream.on('data', data => {
+            this.emit('data', data)
+        }))
 
         this._promisifiedGetPrev = promisify(this._getPrev).bind(this);
     }

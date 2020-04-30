@@ -12,16 +12,19 @@ let chat = new Hyperchat(name)
 chat.start()
 
 chat.on(Events.READY, () => {
-    setupReadStreams(true)
+    //setupReadStreams(true)
 
     if (peers.length > 0) {
         chat.invite(peers)
     }
+    let group = chat.groups[0]
+    if (group) setupReadStreamForGroup(group, true)
 })
 
 chat.on(Events.INVITE, group => {
     console.log("Accepting invite for " + group)
     chat.acceptInvite(group)
+    setupReadStreamForGroup(group, true)
 })
 
 chat.on('decryptedMessage', (messages) => {
@@ -36,10 +39,10 @@ chat.on('decryptedMessage', (messages) => {
 })
 
 chat.on(Events.PEERS_CHANGED, peers => {
-    setupReadStreams(false)
 })
 
 const messageCallback = result => {
+    console.log("messageCallback")
     if (result.left && result.right) {
         console.log('--- PAR ----')
         console.log(result.left)
@@ -50,22 +53,17 @@ const messageCallback = result => {
     }
 }
 
-let streams = []
+// async function setupReadStreams(printAll = false) {
+//     for (let group of chat.groups) {
+//         setupReadStreamForGroup(group, printAll)
+//     }
+// }
 
-async function setupReadStreams(printAll = false) {
-
-    // Remove existing listeners
-    streams.forEach(s => s.off("data", messageCallback))
-    streams = []
-
-    // Add new listeners
-    for (let group of chat.groups) {
-        let stream = await chat.getReadStream(group)
-        if (!stream) return console.log("Error setting up read stream", error)
-        stream.on("data", messageCallback)
-        streams.push(stream)
-        if (printAll) drain(stream)
-    }
+async function setupReadStreamForGroup(group, printAll = false) {
+    let stream = await chat.getReadStream(group)
+    if (!stream) return console.log("Error setting up read stream", error)
+    stream.on('data', messageCallback)
+    if (printAll) drain(stream)
 }
 
 async function drain(stream) {
