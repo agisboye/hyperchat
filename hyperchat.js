@@ -219,7 +219,6 @@ class Hyperchat extends EventEmitter {
                                 })
                             }
                         }
-
                     }
                 }
             },
@@ -254,6 +253,14 @@ class Hyperchat extends EventEmitter {
                         const key = Buffer.from(message.data.key, "hex")
                         this._keychain.saveGroupKey(key, group)
                         this._inviteStreams[peers[invitingPeerIndex].id] = stream
+
+
+                        // connect to the remaining group members (all except yourself and inviter)
+                        let remainingPubKeys = pubKeys
+                        remainingPubKeys.splice(invitingPeerIndex, 1)
+                        remainingPubKeys = remainingPubKeys.filter((k) => !this.me.pubKey.equals(k))
+                        let remainingPeers = remainingPubKeys.map(k => new Peer(k))
+                        this._joinTopics(remainingPeers)
 
                         this.emit(Events.INVITE, group)
 
