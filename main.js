@@ -42,11 +42,10 @@ chat.on(Events.PEERS_CHANGED, peers => {
 })
 
 const messageCallback = result => {
-    console.log("messageCallback")
     if (result.left && result.right) {
         console.log('--- PAR ----')
-        console.log(result.left)
-        console.log(result.right)
+        console.log(result.left.messages)
+        console.log(result.right.messages)
     } else {
         console.log('------------')
         console.log(result)
