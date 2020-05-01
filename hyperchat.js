@@ -275,7 +275,7 @@ class Hyperchat extends EventEmitter {
 
         console.log("Topics: ", details.topics.map(b => b.toString("hex").substring(0, 6)))
 
-        this._replicate(this.me, stream)
+        this._replicateAllFeedsVia(stream)
         pump(stream, socket, stream)
     }
 
@@ -288,6 +288,11 @@ class Hyperchat extends EventEmitter {
         this._feedsManager.getFeed(peer, feed => {
             feed.replicate(stream, { live: true })
         })
+    }
+
+    _replicateAllFeedsVia(stream) {
+        let feeds = this._feedsManager.feeds
+        feeds.forEach((feed) => feed.replicate(stream, { live: true }))
     }
 
     _print() {

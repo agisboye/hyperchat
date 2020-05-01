@@ -79,14 +79,13 @@ process.stdin.on('data', data => {
     let message = data.toString('utf-8')
     let groupNumber = Number(message[0])
 
-    if (groupNumber !== NaN) {
+    if (groupNumber !== NaN && groupNumber > -1) {
         message = message.substring(1)
     } else {
         groupNumber = 0
     }
 
     let group = chat.groups[groupNumber]
-    console.log("group number = ", groupNumber)
     chat.sendMessageTo(group, message)
 })
 
