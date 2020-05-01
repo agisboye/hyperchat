@@ -23,16 +23,10 @@ class FeedManager {
 
         const feed = this._feeds[peer.id]
         if (feed) return cb(feed)
-
+ 
         this._addFeed(peer, () => {
             cb(this._feeds[peer.id])
         })
-    }
-
-    get feeds() {
-        let replicas = Object.values(this._feeds)
-        replicas.push(this._ownFeed)
-        return replicas
     }
 
     /// Returns [{peer, feed}], pairs of peer and its corresponding feed. 
