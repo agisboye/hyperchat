@@ -77,7 +77,16 @@ async function drain(stream) {
 process.stdin.on('data', data => {
 
     let message = data.toString('utf-8')
-    let group = chat.groups[0]
+    let groupNumber = Number(message[0])
+
+    if (groupNumber !== NaN) {
+        message = message.substring(1)
+    } else {
+        groupNumber = 0
+    }
+
+    let group = chat.groups[groupNumber]
+    console.log("group number = ", groupNumber)
     chat.sendMessageTo(group, message)
 })
 

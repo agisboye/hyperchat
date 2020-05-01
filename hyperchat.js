@@ -180,6 +180,7 @@ class Hyperchat extends EventEmitter {
      */
     _joinTopics(peers) {
         peers.forEach(peer => {
+            console.log("Joining topic:", peer.toString())
             this._swarm.join(peer.feedDiscoveryKey, { lookup: true, announce: true })
         })
     }
