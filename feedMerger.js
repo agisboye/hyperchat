@@ -24,37 +24,42 @@ class FeedMerger extends EventEmitter {
     // 3) All the messages that are not the latest ones should be saved to next iteration in '_rest'
     // 4) Remove any unused metadata attached to each message
     async getPrev() {
-        let enumeratedPrevs = await this._getAllPrevsEnumerated()
+        let prevs = await this._getAllPrevsEnumerated()
 
-        if (enumeratedPrevs.length === 0) return null
-        if (enumeratedPrevs.length === 1) return enumeratedPrevs[0].prev
-
-        let newest = this._findNewest(enumeratedPrevs)
+        if (prevs.length === 0) return null
+        if (prevs.length === 1) {
+            this._rest = []
+            this._removeAddedProperties(prevs[0])
+            return prevs[0]
+        }
+        let newest = this._findNewest(prevs)
         // save the rest to next iteration
-        this._rest = enumeratedPrevs.filter(({ index: i1, prev: _ }) => newest.findIndex(({ index: i2, prev: _ }) => i1 === i2) === -1)
+        this._rest = prevs.filter(p1 => newest.findIndex(p2 => p1.index === p2.index) === -1)
 
-
-        let timestamps = newest.map(({ timestamp }) => timestamp)
+        let timestamps = newest.map(prev => prev.timestamp)
 
         let extra = []
-        for (let { index } of newest) {
-            let stream = this._streams[index]
+        for (let prev of newest) {
+            let stream = this._streams[prev.index]
             let parallels = await stream.getAllPrevsParallelToTimestamps(timestamps)
             extra = extra.concat(parallels)
         }
 
-        newest = newest.map(({ index, prev }) => prev)
+        newest.forEach(this._removeAddedProperties)
         // remove indices 
         let res = newest.concat(extra)
         return res
     }
 
+    //TODO: Refactor to loop instead of using helper.
     /// Returns [{index, prev}] where prev: {message, sender, vector} from all streams. 
     /// 'index' shows which stream from '_streams' the message came from. 
     async _getAllPrevsEnumerated() {
         return await this._getAllPrevsEnumeratedHelper(0, [])
     }
 
+
+    //TODO: Refactor to loop instead of using helper.
     /// Returns [{index, prev}] where prev: {message, sender, vector} from all streams. 
     // i = index for the current stream. 
     // res = where we save our result incrementally
@@ -67,7 +72,7 @@ class FeedMerger extends EventEmitter {
 
         // Search in '_rest' before searching through streams. 
         if (this._rest) {
-            let found = (this._rest.find(({ index, _ }) => i === index))
+            let found = (this._rest.find(prev => prev.index === i))
             if (found) {
                 res.push(found)
                 i++
@@ -77,7 +82,10 @@ class FeedMerger extends EventEmitter {
 
         let stream = this._streams[i]
         let prev = await stream.getPrev()
-        if (prev) res.push({ index: i, prev })
+        if (prev) {
+            prev.index = i
+            res.push(prev)
+        }
         i++
         return await this._getAllPrevsEnumeratedHelper(i, res)
     }
@@ -89,41 +97,40 @@ class FeedMerger extends EventEmitter {
 
     /**
      * 
-     * @param {[{index, prev}]} enumeratedPrevs with length > 0
+     * @param {[{index, prev}]} prevs with length > 0
      * @returns {[{index, prev}]} array of the newest message and all parallel to it. 'index' marks which stream 'prev' came from
      */
-    _findNewest(enumeratedPrevs) {
-        let enumeratedPrevsWithTimestamps = enumeratedPrevs
-            .map(({ index, prev }) => ({ index, prev, timestamp: new Timestamp({ index, vector: prev.vector }) }))
+    _findNewest(prevs) {
+        prevs.forEach(prev => prev.timestamp = new Timestamp({ index: prev.index, vector: prev.vector }))
 
         // TODO: Im not sure of this is is correct as ||-property is not transitive..
+        let max = this._findNewestTimestamp(prevs)
+        let parallels = this._findParallelsTo(max, prevs)
 
-        let max = this._findNewestTimestamp(enumeratedPrevsWithTimestamps)
-        let parallels = this._findParallelsTo(max, enumeratedPrevsWithTimestamps)
-
-        return parallels.map(({ index, timestamp: _ }) => enumeratedPrevsWithTimestamps[index])
+        return parallels
     }
 
-    _findNewestTimestamp(enumeratedPrevsWithTimestamps) {
-        let { index: maxIndex, timestamp: maxTimestamp } = enumeratedPrevsWithTimestamps[0]
+    _removeAddedProperties(prev) {
+        delete prev.index
+        delete prev.timestamp
+    }
 
+    _findNewestTimestamp(prevs) {
+        let max = prevs[0]
         // Find the newest timestamp
-        for (let { index, timestamp } of enumeratedPrevsWithTimestamps) {
-            if (timestamp.isNewerThan(maxTimestamp)) {
-                maxIndex = index
-                maxTimestamp = timestamp
+        for (let prev of prevs) {
+            if (prev.timestamp.isNewerThan(max.timestamp)) {
+                max = prev
             }
         }
-        return enumeratedPrevsWithTimestamps[maxIndex]
+        return max
     }
 
-    _findParallelsTo(reference, list) {
+    _findParallelsTo(reference, prevs) {
         // Find parallels to the newest timestamp
         let parallels = [reference]
-        for (let { index, timestamp } of list) {
-            if (parallels.findIndex(({ index: _, timestamp: t }) => t.isParallelTo(timestamp)) > -1) {
-                parallels.push({ index, timestamp })
-            }
+        for (let prev of prevs) {
+            if (parallels.findIndex(par => par.timestamp.isParallelTo(prev.timestamp)) > -1) parallels.push(prev)
         }
         return parallels
     }
