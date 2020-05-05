@@ -72,7 +72,7 @@ class Timestamp {
         var geq = 0
         var eq = 0
 
-        for (var i = 0; i < this.vector; i++) {
+        for (var i = 0; i < this.vector.length; i++) {
             if (this.vector[i] < otherTimestamp.vector[i]) leq++
             else if (this.vector[i] > otherTimestamp.vector[i]) geq++
             else eq++
