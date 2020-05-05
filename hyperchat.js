@@ -203,7 +203,6 @@ class Hyperchat extends EventEmitter {
                 console.log("onhandshake, dropped connection: ", dropped)
             },
             ondiscoverykey: (discoveryKey) => {
-                console.log("ondiscoverykey")
                 let peer = this._peerPersistence.getPeerForDiscoveryKey(discoveryKey)
 
                 if (peer) {

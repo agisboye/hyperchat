@@ -11,8 +11,10 @@ class FeedMerger extends EventEmitter {
         this._sortStreams()
         this._streams.forEach(stream => {
             stream.on('data', data => this.emit('data', data))
-
-            stream.on('vectorclock', vector => this.emit('vectorclock', vector, this._peers))
+            stream.on('vectorclock', vector => {
+                console.log("received vectorclock", vector)
+                this.emit('vectorclock', vector, this._peers)
+            })
         })
         this._promisifiedGetPrev = promisify(this._getPrev).bind(this);
     }

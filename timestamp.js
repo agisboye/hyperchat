@@ -1,5 +1,3 @@
-const Peer = require('./Peer')
-
 const LEQ = 1
 const GEQ = 2
 const PAR = 3
@@ -11,9 +9,9 @@ class Timestamp {
         this.vector = vector
     }
 
-    static init(peer, group, vector) {
+    static init(peer, peers, vector) {
         // ensure group is on [Peer] format
-        let peers = Array.isArray(group) ? group : group.peers
+        peers.sort((p1, p2) => Buffer.compare(p1.pubKey, p2.pubKey))
         let index = peers.findIndex((p) => peer.equals(p))
         if (index === -1) throw new Error("'peer' is not in 'group'")
 
@@ -28,12 +26,11 @@ class Timestamp {
     }
 
     increment() {
-        console.log('incrementing')
+        console.log('incrementing at index', this.index)
         this.vector[this.index] = this.vector[this.index] + 1
     }
 
     update(other) {
-        console.log('updating')
         if (!Array.isArray(other)) {
             // other is 'Timestamp' instance
             other = other.vector
@@ -44,8 +41,10 @@ class Timestamp {
         for (var i = 0; i < this.vector.length; i++) {
             this.vector[i] = Math.max(this.vector[i], other[i])
         }
-        console.log('updating')
+
         this.increment()
+
+        console.log('updated timestamp =', this.vector)
     }
 
     leq(otherTimestamp) {
@@ -60,22 +59,13 @@ class Timestamp {
         return this._compareTo(otherTimestamp) === PAR
     }
 
-    elementwiseDifference(other) {
-        let totalDiff = 0
-        for (let i = 0; i < this.length; i++) {
-            totalDiff += Math.abs(this._array[i] - other._array[i])
-        }
-        return totalDiff
-    }
-
-    moreThan2ElementsDifferBy1(other) {
-        let counter = 0
-        for (let i = 0; i < this.length; i++) {
-            if (Math.abs(this._array[i] - other._array[i]) > 0) counter++
-            if (counter == 2) return true
-        }
-        return false
-    }
+    // elementwiseDifference(other) {
+    //     let totalDiff = 0
+    //     for (let i = 0; i < this.length; i++) {
+    //         totalDiff += Math.abs(this._array[i] - other._array[i])
+    //     }
+    //     return totalDiff
+    // }
 
     _compareTo(otherTimestamp) {
         var leq = 0
