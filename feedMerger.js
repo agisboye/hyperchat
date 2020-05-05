@@ -10,13 +10,9 @@ class FeedMerger extends EventEmitter {
         this._peers = feedsByPeers.map(({ peer, feed }) => peer)
         this._sortStreams()
         this._streams.forEach(stream => {
-            stream.on('data', data => {
-                this.emit('data', data)
-            })
+            stream.on('data', data => this.emit('data', data))
 
-            stream.on('vectorclock', vector => {
-                this.emit('vectorclock', vector, this._peers)
-            })
+            stream.on('vectorclock', vector => this.emit('vectorclock', vector, this._peers))
         })
         this._promisifiedGetPrev = promisify(this._getPrev).bind(this);
     }
@@ -39,6 +35,7 @@ class FeedMerger extends EventEmitter {
     // 3) All the messages that are not the latest ones should be saved to next iteration in '_rest'
     // 4) Remove any unused metadata attached to each message
     _getPrev(cb) {
+        return 1
         this._getAllChunksEnumerated((enumeratedChunks) => {
             if (enumeratedChunks.length === 0) return cb(new Error('end of stream'), null)
 
@@ -55,9 +52,9 @@ class FeedMerger extends EventEmitter {
 
     /// Returns [{index, prev}] where prev: {message, sender, vector} from all streams. 
     /// 'index' shows which stream from '_streams' the message came from. 
-    _getAllChunksEnumerated(cb) {
-        this._getAllChunksEnumeratedHelper(0, [], cb)
-    }
+    // _getAllChunksEnumerated(cb) {
+    //     this._getAllChunksEnumeratedHelper(0, [], cb)
+    // }
 
     /// Returns [{index, prev}] where prev: {message, sender, vector} from all streams. 
     // i = index for the current stream. 
@@ -65,25 +62,25 @@ class FeedMerger extends EventEmitter {
     // How the algorithm runs: 
     // 1) Check in '_rest' if a message has been cached for the i'th stream. 
     // 2) Else get a fresh previous message from the i'th stream. 
-    _getAllChunksEnumeratedHelper(i, res, cb) {
-        // All streams have been traversed
-        if (this._streams.length === i) return cb(res)
+    // _getAllChunksEnumeratedHelper(i, res, cb) {
+    //     // All streams have been traversed
+    //     if (this._streams.length === i) return cb(res)
 
-        // Search in '_rest' before searching through streams. 
-        if (this._rest && this._rest.index === i) {
-            res.push(this._rest)
-            this._rest = null
-            i++
-            return this._getAllChunksEnumeratedHelper(i, res, cb)
-        }
+    //     // Search in '_rest' before searching through streams. 
+    //     if (this._rest && this._rest.index === i) {
+    //         res.push(this._rest)
+    //         this._rest = null
+    //         i++
+    //         return this._getAllChunksEnumeratedHelper(i, res, cb)
+    //     }
 
-        let stream = this._streams[i]
-        stream.getPrevChunk((err, chunk) => {
-            if (!err) res.push({ index: i, chunk: chunk })
-            i++
-            this._getAllChunksEnumeratedHelper(i, res, cb)
-        })
-    }
+    //     let stream = this._streams[i]
+    //     stream.getPrevChunk((err, chunk) => {
+    //         if (!err) res.push({ index: i, chunk: chunk })
+    //         i++
+    //         this._getAllChunksEnumeratedHelper(i, res, cb)
+    //     })
+    // }
 
     /// Sorts '_streams' lexiographically on their feed-key
     _sortStreams() {

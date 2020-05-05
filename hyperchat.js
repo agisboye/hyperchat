@@ -108,7 +108,7 @@ class Hyperchat extends EventEmitter {
         // Include self in conversation
         peers.push(this.me)
 
-        const group = new Group(peers, this.me)
+        const group = Group.init(peers, this.me)
         this._peerPersistence.addGroup(group)
         const key = this._keychain.getGroupKey(group)
         console.log("Inviting " + group)
@@ -143,7 +143,7 @@ class Hyperchat extends EventEmitter {
     sendMessageTo(group, content) {
         let key = this._keychain.getGroupKey(group)
         group.timestamp.increment()
-        let vectorTimestamp = group.timestamp.finalise()
+        let vectorTimestamp = group.timestamp.sendableForm()
         this._peerPersistence.saveTimestampForGrpup(group)
         this._potasium.createEncryptedMessage(content, vectorTimestamp, key, (message) => {
 
@@ -174,7 +174,7 @@ class Hyperchat extends EventEmitter {
      * @param {[Peer]} peers 
      */
     _updateVectorclock(vector, peers) {
-        this._peerPersistence.updateTimestampForGroup(new Group(peers, this.me), vector)
+        this._peerPersistence.updateTimestampForGroup(Group.init(peers, this.me), vector)
     }
 
     /** Private API **/
@@ -256,7 +256,7 @@ class Hyperchat extends EventEmitter {
                         if (!verified) return
 
                         const peers = pubKeys.map(p => new Peer(p))
-                        const group = new Group(peers, this.me)
+                        const group = Group.init(peers, this.me)
 
                         // Save group and key
                         const key = Buffer.from(message.data.key, "hex")

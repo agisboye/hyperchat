@@ -5,44 +5,35 @@ const GEQ = 2
 const PAR = 3
 
 class Timestamp {
-    //TODO: Fix dual constructors based on augusts messages
-    constructor(peerOrJSON, group, vector) {
-        if (peerOrJSON.constructor.name === "Peer") {
-            let peer = peerOrJSON
-            this._init(peer, group, vector)
-        } else {
-            let json = peerOrJSON
-            this.vector = json.vector
-            this.index = json.index
-        }
+
+    constructor({ index, vector }) {
+        this.index = index
+        this.vector = vector
     }
 
-    _init(peer, group, vector) {
-        this.index = group.peers.findIndex((p) => peer.equals(p))
-        if (this.index === -1) throw new Error("'peer' is not in 'group'")
-        if (!!vector && vector.length !== group.size) throw new Error("'vector' length doesnt matche 'group' size")
-        this.vector = vector || new Array(group.size).fill(0)
+    static init(peer, group, vector) {
+        // ensure group is on [Peer] format
+        let peers = Array.isArray(group) ? group : group.peers
+        let index = peers.findIndex((p) => peer.equals(p))
+        if (index === -1) throw new Error("'peer' is not in 'group'")
+
+        vector = vector || new Array(peers.length).fill(0)
+        if (vector.length !== peers.length) throw new Error("'vector' length doesnt match 'group' length")
+
+        return new Timestamp({ index, vector })
     }
 
-    toJSON() {
-        return {
-            vector: this.vector,
-            index: this.index
-        }
-    }
-
-
-    finalise() {
+    sendableForm() {
         return this.vector
     }
 
-
     increment() {
-        console.log("incrmenting")
+        console.log('incrementing')
         this.vector[this.index] = this.vector[this.index] + 1
     }
 
     update(other) {
+        console.log('updating')
         if (!Array.isArray(other)) {
             // other is 'Timestamp' instance
             other = other.vector

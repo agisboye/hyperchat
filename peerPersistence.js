@@ -81,7 +81,7 @@ class PeerPersistence {
 
         // Deserialize data
         if (data) {
-            this.groups = data.map(groupJSON => new Group(groupJSON))
+            this.groups = data.map(obj => Group.fromObject(obj))
 
         } else {
             this.groups = []
@@ -94,7 +94,7 @@ class PeerPersistence {
     _save() {
 
         // Serialize data
-        let data = this.groups.map(group => group.toJSON())
+        let data = this.groups.map(group => group.toSaveableForm())
         fs.writeFileSync(this._path, JSON.stringify(data))
     }
 }

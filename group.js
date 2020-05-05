@@ -4,19 +4,25 @@ const Timestamp = require('./timestamp')
 
 class Group {
 
+    constructor(peers, timestamp) {
+        this.peers = this._sortPeersLexiographically(peers)
+        this.timestamp = timestamp
+    }
+
+    static fromObject(object) {
+        const peers = object.peers.map(id => new Peer(id))
+        const timestamp = new Timestamp(object.timestamp)
+        return new Group(peers, timestamp)
+    }
+
     /**
      * 
-     * @param {Array<Peer>} peers 
+     * @param {[Peer]} peers 
+     * @param {Peer} ownPeer 
      */
-    constructor(peersOrJSON, ownPeer, vectorTimestamp) {
-        if (Array.isArray(peersOrJSON) && peersOrJSON[0] instanceof Peer) {
-            this.peers = this._sortPeersLexiographically(peersOrJSON)
-            this.timestamp = new Timestamp(ownPeer, this, vectorTimestamp)
-        } else {
-            let json = peersOrJSON
-            this.peers = json.peers.map(id => new Peer(id)), 
-            this.timestamp = new Timestamp(json.timestamp)
-        }
+    static init(peers, ownPeer) {
+        const timestamp = Timestamp.init(ownPeer, peers)
+        return new Group(peers, timestamp)
     }
 
     get id() {
@@ -35,7 +41,7 @@ class Group {
         return hash.toString("hex")
     }
 
-    get size() {
+    get length() {
         return this.peers.length
     }
 
@@ -54,16 +60,11 @@ class Group {
         return str
     }
 
-    toJSON() {
+    toSaveableForm() {
         return {
             peers: this.peers.map(p => p.id),
-            timestamp: this.timestamp.toJSON()
+            timestamp: this.timestamp
         }
-    }
-
-    static fromJSON(json) {
-        let peers = json.peers.map(id => new Peer(id))
-        let vector = Timestamp.f
     }
 
     equals(otherGroup) {
