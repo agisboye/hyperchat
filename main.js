@@ -66,10 +66,10 @@ async function setupReadStreamForGroup(group, printAll = false) {
 }
 
 async function drain(stream) {
-    let res = await stream.getPrevAsync()
+    let res = await stream.getPrev()
     while (res) {
         messageCallback(res)
-        res = await stream.getPrevAsync()
+        res = await stream.getPrev()
     }
 }
 

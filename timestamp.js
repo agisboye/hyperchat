@@ -69,13 +69,14 @@ class Timestamp {
     // }
 
     _compareTo(otherTimestamp) {
+        let otherVector = Array.isArray(otherTimestamp) ? otherTimestamp : otherTimestamp.vector
         var lessThan = 0
         var greaterThan = 0
         var equal = 0
 
         for (var i = 0; i < this.vector.length; i++) {
-            if (this.vector[i] < otherTimestamp.vector[i]) lessThan++
-            else if (this.vector[i] > otherTimestamp.vector[i]) greaterThan++
+            if (this.vector[i] < otherVector[i]) lessThan++
+            else if (this.vector[i] > otherVector[i]) greaterThan++
             else equal++
         }
 

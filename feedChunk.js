@@ -1,4 +1,4 @@
-
+//TODO: Delete
 class FeedChunk {
     constructor(input) {
         if (Array.isArray(input)) this._content = input

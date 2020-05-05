@@ -1,6 +1,5 @@
 const FeedChunk = require('./feedChunk')
-
-//TODO: Refactor out of vectorclock
+//TODO: delete
 function compare(enumeratedChunks) {
     if (enumeratedChunks.length === 1) {
         return case0(enumeratedChunks[0].chunk)

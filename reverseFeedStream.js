@@ -1,11 +1,6 @@
 const { EventEmitter } = require('events')
-const FeedChunk = require('./feedChunk')
 const crypto = require('./crypto')
-
-//TODO: Find a better way to find out if we have reached the end of a chunk.
-function reachedEndOfChunk(vector1, vector2) {
-    return vector1.moreThan2ElementsDifferBy1(vector2)
-}
+const promisify = require('util').promisify
 
 class ReverseFeedStream extends EventEmitter {
     constructor(ownPotasium, feed, peer, key) {
@@ -19,43 +14,45 @@ class ReverseFeedStream extends EventEmitter {
         this._isOwnFeed = feed.writable
         this._chatID = crypto.makeChatID(key, feed.key).toString("hex")
         this._setupHandlers()
+        this._promisifiedGetPrev = promisify(this._getPrevViaCallback).bind(this)
     }
 
+    async getAllPrevsParallelToTimestamps(timestamps) {
+        let prev;
+        let res = []
+        while (prev = await this.getPrev()) {
+            if (this._vectorIsParallelToAnyOfTimestamps(timestamps, prev.vector)) {
+                res.push(prev)
+            } else {
+                // we've gone 1 too long. Save the last 'prev' for next iteration
+                this._cachedPrev = prev
+                break
+            }
+        }
+        return res
+    }
 
-    // getPrevChunk(cb) {
-    //     // base case
-    //     this.getPrev((err, prev) => {
-    //         if (err) return cb(err, null)
-    //         let reference = prev.vector
-    //         let chunk = new FeedChunk(prev)
-    //         this._extendChunk(chunk, reference, cb)
-    //     })
-    // }
+    _vectorIsParallelToAnyOfTimestamps(timestamps, vector) {
+        for (let t of timestamps) {
+            if (t.isParallelTo(vector)) return true
+        }
+        return false
+    }
 
-    // induction step
-    // assumes chunk-size > 1. Satisfied by 'getPrevChunk'
-    // _extendChunk(chunk, reference, cb) {
-    //     this.getPrev((err, prev) => {
-    //         // End of stream is reached.
-    //         if (err) return cb(null, chunk)
-
-    //         if (reachedEndOfChunk(reference, prev.vector)) {
-    //             // 'prev' is not included in this chunk. Put it back into the readstream.  
-    //             this._cachedPrev = prev
-    //             return cb(null, chunk)
-    //         } else {
-    //             chunk.extend(prev)
-    //             return this._extendChunk(chunk, prev.vector, cb)
-    //         }
-    //     })
-    // }
-
+    async getPrev() {
+        try {
+            return await this._promisifiedGetPrev()
+        } catch (err) {
+            return null
+        }
+    }
     /** 
      * Returns the latest message-block for a given conversation in the stream starting from head via callback. 
      * If no message-block is present for the conversation, an error is returned. 
+     * We return using callback because we need to wait for 'feed.ready' callback. 
      * @param {err, { message: string, sender: string, vector: [int] }} cb 
      */
-    getPrev(cb) {
+    _getPrevViaCallback(cb) {
         this.feed.ready(() => {
             if (this._cachedPrev) {
                 let prev = this._cachedPrev
