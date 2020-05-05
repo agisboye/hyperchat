@@ -27,11 +27,8 @@ class FeedMerger extends EventEmitter {
         let enumeratedPrevs = await this._getAllPrevsEnumerated()
 
         if (enumeratedPrevs.length === 0) return null
-        if (enumeratedPrevs.length === 1) {
-            //TODO: make proper handling of this case. 
-            this._rest = []
-            return enumeratedPrevs[0].prev
-        }
+        if (enumeratedPrevs.length === 1) return enumeratedPrevs[0].prev
+
         let newest = this._findNewest(enumeratedPrevs)
         // save the rest to next iteration
         this._rest = enumeratedPrevs.filter(({ index: i1, prev: _ }) => newest.findIndex(({ index: i2, prev: _ }) => i1 === i2) === -1)

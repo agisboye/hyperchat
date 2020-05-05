@@ -54,38 +54,6 @@ class FeedManager {
         })
     }
 
-    //TODO: Remove. Is unused
-    getLengthByKeysOfFeeds(group, cb) {
-        // We clone to avoid side effects of modifying group
-        let peers = [...group.peers]
-        this._getLengthByKeysOfFeeds(peers, [], cb)
-    }
-
-    _getLengthByKeysOfFeeds(group, keysAndLengths, cb) {
-        if (group.length === 0) return cb(this._sortLengthsAndKeysByKeys(keysAndLengths))
-
-        const peer = group.shift()
-        this._getLengthOf(peer, (res) => {
-            keysAndLengths.push(res)
-            this._getLengthByKeysOfFeeds(group, keysAndLengths, cb)
-        })
-    }
-
-    _sortLengthsAndKeysByKeys(keysAndLengths) {
-        keysAndLengths.sort((a, b) => a.feedkey.localeCompare(b.feedkey))
-        keysAndLengths = keysAndLengths.map(({ feedkey, length }) => ({ feedkey: Buffer.from(feedkey, 'hex'), length: length }))
-        return keysAndLengths
-    }
-
-    _getLengthOf(peer, cb) {
-        this.getFeed(peer, (feed) => {
-            cb({
-                feedkey: feed.key.toString('hex'),
-                length: feed.length
-            })
-        })
-    }
-
     _addFeed(peer, cb) {
         const path = this._path + peer.id
         const feed = hypercore(path, peer.pubKey, { valueEncoding: 'json' })

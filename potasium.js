@@ -33,16 +33,6 @@ class Potasium {
 
         return JSON.parse(res.toString('utf-8'))
     }
-
-    //TODO: Remove. Unused
-    _makeTimestamp(keysAndLengths) {
-        // We need to add 1 to our own feed length before appending the message (vector clock invariant)
-        let vector = keysAndLengths.map(({ feedkey, length }) => length)
-        let indexOfOwnKey = keysAndLengths.findIndex(({ feedkey, length }) => this._feed.key.equals(feedkey))
-
-        vector[indexOfOwnKey] = vector[indexOfOwnKey] + 1
-        return vector
-    }
 }
 
 module.exports = Potasium
