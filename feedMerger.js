@@ -10,15 +10,8 @@ class FeedMerger extends EventEmitter {
         this._peers = feedsByPeers.map(({ peer, feed }) => peer)
         this._sortStreams()
         this._streams.forEach(stream => {
-            stream.on('data', data => {
-                console.log("received data")
-                this.emit('data', data)
-            })
-
-            stream.on('vectorclock', vector => {
-                console.log("received vectorclock", vector)
-                this.emit('vectorclock', vector, this._peers)
-            })
+            stream.on('data', data => this.emit('data', data))
+            stream.on('vectorclock', vector => this.emit('vectorclock', vector, this._peers))
         })
         this._promisifiedGetPrev = promisify(this._getPrev).bind(this);
     }
@@ -44,15 +37,17 @@ class FeedMerger extends EventEmitter {
         this._getAllPrevsEnumerated((enumeratedPrevs) => {
             if (enumeratedPrevs.length === 0) return cb(new Error('end of stream'), null)
             if (enumeratedPrevs.length === 1) {
+                //TODO: make proper handling of this case. 
                 this._rest = []
                 return cb(null, enumeratedPrevs[0].prev)
             }
-            let maxIndex = this._compare(enumeratedPrevs)
-            // save the rest to next iteration
-            this._rest = enumeratedPrevs.filter(elem => elem.index !== maxIndex)
+            let newest = this._findNewest(enumeratedPrevs)
 
-            // remove indices and other unused metadata
-            let res = enumeratedPrevs[maxIndex].prev
+            // save the rest to next iteration
+            this._rest = enumeratedPrevs.filter(({ index: i1, prev: _ }) => newest.findIndex(({ index: i2, prev: _ }) => i1 === i2) === -1)
+
+            // remove indices 
+            let res = newest.map(({ index, prev }) => prev)
 
             return cb(null, res)
         })
@@ -97,15 +92,36 @@ class FeedMerger extends EventEmitter {
         this._streams.sort((s1, s2) => Buffer.compare(s1.feed.key, s2.feed.key))
     }
 
-    _compare(enumeratedPrevs) {
-        let i1 = enumeratedPrevs[0].index
-        let v1 = enumeratedPrevs[0].prev.vector
-        let i2 = enumeratedPrevs[1].index
-        let v2 = enumeratedPrevs[1].prev.vector
-        let t1 = new Timestamp({ index: i1, vector: v1 })
-        let t2 = new Timestamp({ index: i2, vector: v2 })
+    /**
+     * 
+     * @param {[{index, prev}]} enumeratedPrevs with length > 0
+     * @returns {[{index, prev}]} array of the newest message and all parallel to it. 'index' marks which stream 'prev' came from
+     */
+    _findNewest(enumeratedPrevs) {
+        let enumeratedTimestamps = enumeratedPrevs.map(({ index, prev }) => ({ index, timestamp: new Timestamp({ index, vector: prev.vector }) }))
 
-        return t1.geq(t2) ? 0 : 1
+        // TODO: Im not sure of this is is correct as ||-property is not transitive..
+
+        let { index: maxIndex, timestamp: maxTimestamp } = enumeratedTimestamps[0]
+
+        // Find the newest timestamp
+        for (let { index, timestamp } of enumeratedTimestamps) {
+            if (timestamp.isNewerThan(maxTimestamp)) {
+                maxIndex = index
+                maxTimestamp = timestamp
+            }
+        }
+
+        // Find parallels to the newest timestamp
+        let parallels = [{ index: maxIndex, timestamp: maxTimestamp }]
+
+        for (let { index, timestamp } of enumeratedTimestamps) {
+            if (parallels.findIndex(({ index: _, timestamp: t }) => t.isParallelTo(timestamp)) > -1) {
+                parallels.push({ index, timestamp })
+            }
+        }
+
+        return parallels.map(({ index, timestamp: _ }) => enumeratedPrevs[index])
     }
 }
 

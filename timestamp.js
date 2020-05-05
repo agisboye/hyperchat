@@ -1,6 +1,6 @@
-const LEQ = 1
-const GEQ = 2
-const PAR = 3
+const LESS_THAN = 1
+const GREATER_THAN = 2
+const PARALLEL = 3
 
 class Timestamp {
 
@@ -47,18 +47,19 @@ class Timestamp {
         console.log('updated timestamp =', this.vector)
     }
 
-    leq(otherTimestamp) {
-        return this._compareTo(otherTimestamp) === LEQ
+    isOlderThan(otherTimestamp) {
+        return this._compareTo(otherTimestamp) === LESS_THAN
     }
 
-    geq(otherTimestamp) {
-        return this._compareTo(otherTimestamp) === GEQ
+    isNewerThan(otherTimestamp) {
+        return this._compareTo(otherTimestamp) === GREATER_THAN
     }
 
-    par(otherTimestamp) {
-        return this._compareTo(otherTimestamp) === PAR
+    isParallelTo(otherTimestamp) {
+        return this._compareTo(otherTimestamp) === PARALLEL
     }
 
+    //TODO: Remove
     // elementwiseDifference(other) {
     //     let totalDiff = 0
     //     for (let i = 0; i < this.length; i++) {
@@ -68,20 +69,20 @@ class Timestamp {
     // }
 
     _compareTo(otherTimestamp) {
-        var leq = 0
-        var geq = 0
-        var eq = 0
+        var lessThan = 0
+        var greaterThan = 0
+        var equal = 0
 
         for (var i = 0; i < this.vector.length; i++) {
-            if (this.vector[i] < otherTimestamp.vector[i]) leq++
-            else if (this.vector[i] > otherTimestamp.vector[i]) geq++
-            else eq++
+            if (this.vector[i] < otherTimestamp.vector[i]) lessThan++
+            else if (this.vector[i] > otherTimestamp.vector[i]) greaterThan++
+            else equal++
         }
 
-        if (eq === this.length) return PAR // If this == other then they are also parallel
-        if (leq > 0 && geq > 0) return PAR
-        if (leq > 0) return LEQ
-        return GEQ
+        if (equal === this.length) return PARALLEL // If this == other then they are also parallel
+        if (lessThan > 0 && greaterThan > 0) return PARALLEL
+        if (lessThan > 0) return LESS_THAN
+        return GREATER_THAN
     }
 }
 
