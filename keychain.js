@@ -41,7 +41,6 @@ class Keychain {
             this._saveKeychain()
         }
 
-        console.log(">keychain: group key=", key.toString("hex").substring(0, 5))
         return key
     }
 
@@ -76,7 +75,7 @@ class Keychain {
                 this._group_keys[k] = Buffer.from(v, "hex")
             }
 
-        } catch (err) {}
+        } catch (err) { }
     }
 
     /**

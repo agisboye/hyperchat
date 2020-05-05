@@ -25,6 +25,28 @@ class PeerPersistence {
         }
     }
 
+    /**
+     * 
+     * @param {Group} group 
+     * @param {[int]} vector 
+     */
+    updateTimestampForGroup(group, vector) {
+        // find the correct reference so we can save the update correctly 
+        let groupReference = this.groups.find(g => g.equals(group))
+        groupReference.timestamp.update(vector)
+        this._save()
+    }
+
+    /**
+     * 
+     * @param {Group} group 
+     */
+    saveTimestampForGrpup(group) {
+        let groupReference = this.groups.find(g => g.equals(group))
+        groupReference.timestamp = group.timestamp
+        this._save()
+    }
+
     knowsGroup(group) {
         return this.groups.find(g => g.equals(group)) !== undefined
     }
@@ -59,10 +81,7 @@ class PeerPersistence {
 
         // Deserialize data
         if (data) {
-            this.groups = data.map(groupArray => {
-                let peers = groupArray.map(p => new Peer(p))
-                return new Group(peers)
-            })
+            this.groups = data.map(groupJSON => new Group(groupJSON))
 
         } else {
             this.groups = []
@@ -75,11 +94,7 @@ class PeerPersistence {
     _save() {
 
         // Serialize data
-        let data = this.groups.map(group => {
-            return group.peers.map(p => p.id)
-        })
-
-
+        let data = this.groups.map(group => group.toJSON())
         fs.writeFileSync(this._path, JSON.stringify(data))
     }
 }

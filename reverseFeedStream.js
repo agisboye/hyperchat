@@ -22,33 +22,33 @@ class ReverseFeedStream extends EventEmitter {
     }
 
 
-    getPrevChunk(cb) {
-        // base case
-        this.getPrev((err, prev) => {
-            if (err) return cb(err, null)
-            let reference = prev.vector
-            let chunk = new FeedChunk(prev)
-            this._extendChunk(chunk, reference, cb)
-        })
-    }
+    // getPrevChunk(cb) {
+    //     // base case
+    //     this.getPrev((err, prev) => {
+    //         if (err) return cb(err, null)
+    //         let reference = prev.vector
+    //         let chunk = new FeedChunk(prev)
+    //         this._extendChunk(chunk, reference, cb)
+    //     })
+    // }
 
     // induction step
     // assumes chunk-size > 1. Satisfied by 'getPrevChunk'
-    _extendChunk(chunk, reference, cb) {
-        this.getPrev((err, prev) => {
-            // End of stream is reached.
-            if (err) return cb(null, chunk)
+    // _extendChunk(chunk, reference, cb) {
+    //     this.getPrev((err, prev) => {
+    //         // End of stream is reached.
+    //         if (err) return cb(null, chunk)
 
-            if (reachedEndOfChunk(reference, prev.vector)) {
-                // 'prev' is not included in this chunk. Put it back into the readstream.  
-                this._cachedPrev = prev
-                return cb(null, chunk)
-            } else {
-                chunk.extend(prev)
-                return this._extendChunk(chunk, prev.vector, cb)
-            }
-        })
-    }
+    //         if (reachedEndOfChunk(reference, prev.vector)) {
+    //             // 'prev' is not included in this chunk. Put it back into the readstream.  
+    //             this._cachedPrev = prev
+    //             return cb(null, chunk)
+    //         } else {
+    //             chunk.extend(prev)
+    //             return this._extendChunk(chunk, prev.vector, cb)
+    //         }
+    //     })
+    // }
 
     /** 
      * Returns the latest message-block for a given conversation in the stream starting from head via callback. 
@@ -137,6 +137,7 @@ class ReverseFeedStream extends EventEmitter {
         let decrypted = this._decryptAndAddMetaData(message.data.ciphertext)
 
         if (decrypted) {
+            this.emit('vectorclock', decrypted.vector)
             this.emit('data', decrypted)
         }
     }

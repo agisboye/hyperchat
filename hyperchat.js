@@ -87,8 +87,6 @@ class Hyperchat extends EventEmitter {
         return this._peerPersistence.groups
     }
 
-
-
     /**
      * Returns an array of known peers as well as their current online status
      * @returns {Array<Peer>}
@@ -110,7 +108,7 @@ class Hyperchat extends EventEmitter {
         // Include self in conversation
         peers.push(this.me)
 
-        const group = new Group(peers)
+        const group = new Group(peers, this.me)
         this._peerPersistence.addGroup(group)
         const key = this._keychain.getGroupKey(group)
         console.log("Inviting " + group)
@@ -143,13 +141,14 @@ class Hyperchat extends EventEmitter {
      * @param {string} content 
      */
     sendMessageTo(group, content) {
-        this._feedsManager.getLengthByKeysOfFeeds(group, keysAndLengths => {
-            let key = this._keychain.getGroupKey(group)
-            this._potasium.createEncryptedMessage(content, keysAndLengths, key, (message) => {
+        let key = this._keychain.getGroupKey(group)
+        group.timestamp.increment()
+        let vectorTimestamp = group.timestamp.finalise()
+        this._peerPersistence.saveTimestampForGrpup(group)
+        this._potasium.createEncryptedMessage(content, vectorTimestamp, key, (message) => {
 
-                this._feed.append(message, err => {
-                    if (err) throw err
-                })
+            this._feed.append(message, err => {
+                if (err) throw err
             })
         })
     }
@@ -158,14 +157,24 @@ class Hyperchat extends EventEmitter {
      * Sets up a read stream that contains all messages
      * in a given conversation.
      * @param {Group} group
-     * @param {Function} callback - Takes an error and a stream argument.
      */
     async getReadStream(group) {
         let key = this._keychain.getGroupKey(group)
 
         let feedsByPeers = await this._feedsManager.getFeedsByPeersForGroup(group)
-        return new FeedMerger(this._potasium, key, feedsByPeers)
+        let merger = new FeedMerger(this._potasium, key, feedsByPeers)
 
+        merger.on('vectorclock', (vector, peers) => this._updateVectorclock(vector, peers))
+        return merger
+    }
+
+    /**
+     * 
+     * @param {[int]} vector 
+     * @param {[Peer]} peers 
+     */
+    _updateVectorclock(vector, peers) {
+        this._peerPersistence.updateTimestampForGroup(new Group(peers, this.me), vector)
     }
 
     /** Private API **/
@@ -238,7 +247,7 @@ class Hyperchat extends EventEmitter {
                 switch (message.type) {
                     case HYPERCHAT_PROTOCOL_INVITE:
 
-                        // Ensure that the inviting peer is in the group that they are inviting to.
+                        // Ensure that the inviting peer is in the group that they are invitin≥g to.
                         const pubKeys = message.data.peers.map(p => Buffer.from(p, "hex"))
                         const invitingPeerIndex = pubKeys.findIndex(k => stream.remoteVerified(k) && !this.me.pubKey.equals(k))
                         const verified = invitingPeerIndex !== -1
@@ -247,7 +256,7 @@ class Hyperchat extends EventEmitter {
                         if (!verified) return
 
                         const peers = pubKeys.map(p => new Peer(p))
-                        const group = new Group(peers)
+                        const group = new Group(peers, this.me)
 
                         // Save group and key
                         const key = Buffer.from(message.data.key, "hex")

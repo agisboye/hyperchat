@@ -1,20 +1,18 @@
 const crypto = require('./crypto')
-const Vector = require('./vector')
 
 class Potasium {
     constructor(feed) {
         this._feed = feed
     }
 
-    createEncryptedMessage(plaintext, lengthsAndKeys, key, cb) {
+    createEncryptedMessage(plaintext, vectorTimestamp, key, cb) {
         let internalMessage = {
-            vector: this._makeTimestamp(lengthsAndKeys),
+            vector: vectorTimestamp,
             message: plaintext
         }
 
         let cipher = crypto.encryptMessage(JSON.stringify(internalMessage), key)
         let chatID = crypto.makeChatID(key, this._feed.key).toString('hex')
-        console.log("> createEncryptedMessage: key=", key.toString('hex').substring(0, 10))
 
         this._feed.head((err, head) => {
             let dict = (err) ? {} : head.data.dict
@@ -29,17 +27,14 @@ class Potasium {
         })
     }
 
-    //TODO: How do we obtain all other peerIDs in the group only from 'peerID'? We need some kind of map here.
     decryptMessageUsingKey(ciphertext, key) {
         let res = crypto.decryptMessage(ciphertext, key)
         if (!res) return null
 
-        let parsed = JSON.parse(res.toString('utf-8'))
-        // convert [int] to Vector
-        parsed.vector = new Vector(parsed.vector)
-        return parsed
+        return JSON.parse(res.toString('utf-8'))
     }
 
+    //TODO: Remove. Unused
     _makeTimestamp(keysAndLengths) {
         // We need to add 1 to our own feed length before appending the message (vector clock invariant)
         let vector = keysAndLengths.map(({ feedkey, length }) => length)

@@ -54,6 +54,7 @@ class FeedManager {
         })
     }
 
+    //TODO: Remove. Is unused
     getLengthByKeysOfFeeds(group, cb) {
         // We clone to avoid side effects of modifying group
         let peers = [...group.peers]

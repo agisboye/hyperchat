@@ -28,7 +28,7 @@
             "program": "${workspaceFolder}/main.js",
             "args": [
                 "B",
-                "5c43a121575d17153d0c87e572f7d2918ff88188276b7e7c3d6b4ef597105b596caaeecead0ec10750695048d4c4cbd94a5e75435f304c0348a129bc35eb4469"
+                "6e336a7035352905b7fb4912a7754cb9494d7a94fbcb1be91d6b92eac0f31304"
             ]
         },
         {
@@ -72,6 +72,13 @@
                 "<node_internals>/**"
             ],
             "program": "${workspaceFolder}/temp2.js"
+        },
+        {
+            "name": "Python: Current File",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal"
         }
     ]
 }
