@@ -5,8 +5,9 @@ const Timestamp = require('./timestamp')
 class Group {
 
     constructor(peers, timestamp) {
-        this.peers = this._sortPeersLexiographically(peers)
+        this.peers = peers
         this.timestamp = timestamp
+        this._sortAndUniquePeers()
     }
 
     static fromObject(object) {
@@ -26,21 +27,15 @@ class Group {
     }
 
     get id() {
-        // Sort peers to ensure we always get the same
-        // hash for the same set of peers.
-        const ids = [...new Set(this.peers.map(p => p.id))]
-        const uniquePeers = ids.map(id => new Peer(id))
-
-        const buffers = uniquePeers
-            .map(p => p.pubKey)
-            .sort(Buffer.compare)
-
+        const buffers = this.peers.map(p => p.pubKey)
         const concatenation = Buffer.concat(buffers)
         const hash = crypto.hash(concatenation)
-
         return hash.toString("hex")
     }
 
+    /**
+     * Number of peers in the group.
+     */
     get length() {
         return this.peers.length
     }
@@ -71,12 +66,17 @@ class Group {
         return this.id === otherGroup.id
     }
 
-    _sortPeersLexiographically(peers) {
-        const uniquePeerkeys = [...new Set(peers.map(p => p.pubKey))]
-        uniquePeerkeys.sort(Buffer.compare)
-
-        let sortedUniquePeers = uniquePeerkeys.map(id => new Peer(id))
-        return sortedUniquePeers
+    /**
+     * Ensures that the array of peers in this group
+     * contains every peer exactly once and that the
+     * peers are sorted according to their ID.
+     */
+    _sortAndUniquePeers() {
+        const ids = [...new Set(this.peers.map(p => p.id))]
+        this.peers = ids
+            .map(id => Buffer.from(id, "hex"))
+            .sort(Buffer.compare)
+            .map(pubKey => new Peer(pubKey))
     }
 
 }
