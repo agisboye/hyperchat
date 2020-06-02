@@ -206,10 +206,6 @@ class Hyperchat extends EventEmitter {
                 let peer = this._peerPersistence.getPeerForDiscoveryKey(discoveryKey)
 
                 if (peer) {
-                    // If we have this topic among our known peers, we replicate it.
-                    this._replicate(peer, stream)
-
-
                     // If the peer has sent a capability for  their key, we know that they
                     // are the owner.                    
                     if (stream.remoteVerified(peer.pubKey)) {
@@ -282,7 +278,7 @@ class Hyperchat extends EventEmitter {
 
         console.log("Topics: ", details.topics.map(b => b.toString("hex").substring(0, 6)))
 
-        this._replicate(this.me, stream)
+        this._replicateAll(stream)
         pump(stream, socket, stream)
     }
 
@@ -293,7 +289,17 @@ class Hyperchat extends EventEmitter {
      */
     _replicate(peer, stream) {
         this._feedsManager.getFeed(peer, feed => {
+            console.log("replicating", feed.key.toString('hex').substring(0, 10))
             feed.replicate(stream, { live: true })
+        })
+    }
+
+    _replicateAll(stream) {
+        this._feedsManager.getAllFeeds((feeds) => {
+            for (let feed of feeds) {
+                console.log("replicating all:", feed.key.toString('hex').substring(0, 10))
+                feed.replicate(stream, { live: true })
+            }
         })
     }
 

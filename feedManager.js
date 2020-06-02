@@ -13,6 +13,12 @@ class FeedManager {
         this._getFeedsByPeersForGroupAsync = promisify(this._getFeedsByPeersForGroup).bind(this)
     }
 
+    getAllFeeds(cb) {
+        let feeds = Object.values(this._feeds)
+        feeds.push(this._ownFeed)
+        return cb(feeds)
+    }
+
     /**
      * 
      * @param {Peer} peer 
