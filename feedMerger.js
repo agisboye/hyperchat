@@ -36,12 +36,14 @@ class FeedMerger extends EventEmitter {
         // save the rest to next iteration
         this._rest = prevs.filter(p1 => newest.findIndex(p2 => p1.index === p2.index) === -1)
 
-        let timestamps = newest.map(prev => prev.timestamp)
-
         let extra = []
         for (let prev of newest) {
             let stream = this._streams[prev.index]
-            let parallels = await stream.getAllPrevsParallelToTimestamps(timestamps)
+
+            let otherPrevs = newest.filter((p => !p.timestamp.isEqualTo(prev.timestamp)))
+            let otherTimestamps = otherPrevs.map(prev => prev.timestamp)
+
+            let parallels = await stream.getAllPrevsParallelToTimestamps(otherTimestamps)
             extra = extra.concat(parallels)
         }
 

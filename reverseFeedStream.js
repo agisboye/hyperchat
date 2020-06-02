@@ -21,7 +21,7 @@ class ReverseFeedStream extends EventEmitter {
         let prev;
         let res = []
         while (prev = await this.getPrev()) {
-            if (this._vectorIsParallelToAnyOfTimestamps(timestamps, prev.vector)) {
+            if (this._vectorIsParallelToAllTimestamps(timestamps, prev.vector)) {
                 res.push(prev)
             } else {
                 // we've gone 1 too long. Save the last 'prev' for next iteration
@@ -32,11 +32,11 @@ class ReverseFeedStream extends EventEmitter {
         return res
     }
 
-    _vectorIsParallelToAnyOfTimestamps(timestamps, vector) {
+    _vectorIsParallelToAllTimestamps(timestamps, vector) {
         for (let t of timestamps) {
-            if (t.isParallelTo(vector)) return true
+            if (!t.isParallelTo(vector)) return false
         }
-        return false
+        return true
     }
 
     async getPrev() {

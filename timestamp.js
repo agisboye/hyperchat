@@ -1,6 +1,7 @@
 const LESS_THAN = 1
 const GREATER_THAN = 2
 const PARALLEL = 3
+const EQUAL = 4
 
 class Timestamp {
 
@@ -47,6 +48,10 @@ class Timestamp {
         console.log('updated timestamp =', this.vector)
     }
 
+    isEqualTo(otherTimestamp) {
+        return this._compareTo(otherTimestamp) === EQUAL
+    }
+
     isOlderThan(otherTimestamp) {
         return this._compareTo(otherTimestamp) === LESS_THAN
     }
@@ -80,7 +85,7 @@ class Timestamp {
             else equal++
         }
 
-        if (equal === this.length) return PARALLEL // If this == other then they are also parallel
+        if (equal === this.length) return EQUAL
         if (lessThan > 0 && greaterThan > 0) return PARALLEL
         if (lessThan > 0) return LESS_THAN
         return GREATER_THAN
