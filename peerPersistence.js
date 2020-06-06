@@ -41,7 +41,7 @@ class PeerPersistence {
      * 
      * @param {Group} group 
      */
-    saveTimestampForGrpup(group) {
+    saveTimestampForGroup(group) {
         let groupReference = this.groups.find(g => g.equals(group))
         groupReference.timestamp = group.timestamp
         this._save()

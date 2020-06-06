@@ -4,7 +4,6 @@ const pump = require('pump')
 const hypercore = require('hypercore')
 const hyperswarm = require('hyperswarm')
 const PeerPersistence = require('./peerPersistence')
-const Potasium = require('./potasium')
 const FeedManager = require('./feedManager')
 const FeedMerger = require('./feedMerger')
 const OnlineIndicator = require('./onlineIndicator')
@@ -12,6 +11,7 @@ const Keychain = require('./keychain')
 const PendingInvites = require('./pendingInvites')
 const Peer = require('./peer')
 const Group = require('./group')
+const crypto = require('./crypto')
 
 const HYPERCHAT_EXTENSION = "hyperchat"
 const HYPERCHAT_PROTOCOL_INVITE = "invite"
@@ -49,7 +49,6 @@ class Hyperchat extends EventEmitter {
             }
         )
         this._feedsManager = new FeedManager(path, this._feed)
-        this._potasium = new Potasium(this._feed)
 
         // Streams from peers that have sent an invite which has not yet been accepted/rejected.
         // Keyed by peer.
@@ -144,9 +143,8 @@ class Hyperchat extends EventEmitter {
         let key = this._keychain.getGroupKey(group)
         group.timestamp.increment()
         let vectorTimestamp = group.timestamp.sendableForm()
-        this._peerPersistence.saveTimestampForGrpup(group)
-        this._potasium.createEncryptedMessage(content, vectorTimestamp, key, (message) => {
-
+        this._peerPersistence.saveTimestampForGroup(group)
+        this._createEncryptedMessage(content, vectorTimestamp, key, (message) => {
             this._feed.append(message, err => {
                 if (err) throw err
             })
@@ -162,22 +160,23 @@ class Hyperchat extends EventEmitter {
         let key = this._keychain.getGroupKey(group)
 
         let feedsByPeers = await this._feedsManager.getFeedsByPeersForGroup(group)
-        let merger = new FeedMerger(this._potasium, key, feedsByPeers)
+        let merger = new FeedMerger(key, feedsByPeers)
 
         merger.on('vectorclock', (vector, peers) => this._updateVectorclock(vector, peers))
         return merger
     }
+    
+    /** Private API **/
 
     /**
      * 
-     * @param {[int]} vector 
-     * @param {[Peer]} peers 
+     * @param {Array<number>} vector 
+     * @param {Array<Peer>} peers 
      */
     _updateVectorclock(vector, peers) {
         this._peerPersistence.updateTimestampForGroup(Group.init(peers, this.me), vector)
     }
 
-    /** Private API **/
     _announceSelf() {
         console.log("Announcing self")
         this._swarm.join(this.me.feedDiscoveryKey, { lookup: true, announce: true })
@@ -300,6 +299,30 @@ class Hyperchat extends EventEmitter {
                 console.log("replicating all:", feed.key.toString('hex').substring(0, 10))
                 feed.replicate(stream, { live: true })
             }
+        })
+    }
+
+    _createEncryptedMessage(plaintext, vectorTimestamp, key, cb) {
+        const internalMessage = {
+            vector: vectorTimestamp,
+            message: plaintext
+        }
+
+        const ciphertext = crypto.encryptMessage(JSON.stringify(internalMessage), key)
+        const chatID = crypto.makeChatID(key, this._feed.key).toString('hex')
+
+        this._feed.head((err, head) => {
+            if (err && this._feed.length > 0) return cb(err)
+
+            const dict = ((head) ? head.data.dict : undefined) || {}
+            dict[chatID] = this._feed.length
+            cb({
+                type: 'message',
+                data: {
+                    dict: dict,
+                    ciphertext: ciphertext.toString('hex')
+                }
+            })
         })
     }
 

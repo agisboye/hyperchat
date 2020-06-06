@@ -3,9 +3,9 @@ const ReverseFeedStream = require('./reverseFeedStream')
 const Timestamp = require('./timestamp')
 
 class FeedMerger extends EventEmitter {
-    constructor(potasium, key, feedsByPeers) {
+    constructor(key, feedsByPeers) {
         super()
-        this._streams = feedsByPeers.map(({ peer, feed }) => new ReverseFeedStream(potasium, feed, peer, key))
+        this._streams = feedsByPeers.map(({ peer, feed }) => new ReverseFeedStream(feed, peer, key))
         this._sortStreams()
         this._streamsEnumerated = this._streams.map((stream, index) => ({ index, stream }))
 

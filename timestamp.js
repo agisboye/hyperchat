@@ -28,7 +28,7 @@ class Timestamp {
 
     increment() {
         console.log('incrementing at index', this.index)
-        this.vector[this.index] = this.vector[this.index] + 1
+        this.vector[this.index] += 1
     }
 
     update(other) {
@@ -37,9 +37,9 @@ class Timestamp {
             other = other.vector
         }
 
-        if (this.vector.length !== other.length) throw new Error("TimeStamper Error: Cannot update vectors of different size")
+        if (this.vector.length !== other.length) throw new Error("Timestamp Error: Cannot update vectors of different size")
 
-        for (var i = 0; i < this.vector.length; i++) {
+        for (let i = 0; i < this.vector.length; i++) {
             this.vector[i] = Math.max(this.vector[i], other[i])
         }
 
@@ -75,11 +75,11 @@ class Timestamp {
 
     _compareTo(otherTimestamp) {
         let otherVector = Array.isArray(otherTimestamp) ? otherTimestamp : otherTimestamp.vector
-        var lessThan = 0
-        var greaterThan = 0
-        var equal = 0
+        let lessThan = 0
+        let greaterThan = 0
+        let equal = 0
 
-        for (var i = 0; i < this.vector.length; i++) {
+        for (let i = 0; i < this.vector.length; i++) {
             if (this.vector[i] < otherVector[i]) lessThan++
             else if (this.vector[i] > otherVector[i]) greaterThan++
             else equal++

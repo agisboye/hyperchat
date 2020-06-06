@@ -3,12 +3,11 @@ const crypto = require('./crypto')
 const promisify = require('util').promisify
 
 class ReverseFeedStream extends EventEmitter {
-    constructor(ownPotasium, feed, peer, key) {
+    constructor(feed, peer, key) {
         super()
         this.feed = feed
         this.peer = peer
         this._relevantIndex = feed.length - 1 // start at head index
-        this._potasium = ownPotasium
         this._relevantIndexNotSet = true
         this._key = key
         this._isOwnFeed = feed.writable
@@ -152,8 +151,9 @@ class ReverseFeedStream extends EventEmitter {
 
     /// Returns { message, sender, vector } if ciphertext can be decrypted else null. 
     _decryptAndAddMetaData(ciphertext) {
-        let decrypted = this._potasium.decryptMessageUsingKey(Buffer.from(ciphertext, 'hex'), this._key)
-        if (decrypted) {
+        let res = crypto.decryptMessage(Buffer.from(ciphertext, 'hex'), this._key)
+        if (res) {
+            const decrypted = JSON.parse(res.toString('utf-8'))
             decrypted['sender'] = this.peer.toString()
             return decrypted
         } else {
