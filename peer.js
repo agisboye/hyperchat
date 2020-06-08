@@ -1,4 +1,4 @@
-const sodium = require('sodium-native')
+const crypto = require("hypercore-crypto")
 
 const PUBLIC_KEY_LENGTH = 32
 
@@ -25,9 +25,7 @@ class Peer {
     }
 
     get feedDiscoveryKey() {
-        let digest = Buffer.alloc(32)
-        sodium.crypto_generichash(digest, Buffer.from('hypercore'), this.pubKey)
-        return digest
+        return crypto.discoveryKey(this.pubKey)
     }
 
     toString() {
