@@ -6,6 +6,10 @@ const Group = require('./group')
 class PeerPersistence {
 
     constructor(name) {
+        if (!fs.existsSync("./persistence")) {
+            fs.mkdirSync("./persistence")
+        }
+
         this._path = "./persistence/groups" + name + ".json"
         this._load()
     }

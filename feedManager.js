@@ -35,11 +35,11 @@ class FeedManager {
         })
     }
 
-    /// Returns [{peer, feed}], pairs of peer and its corresponding feed. 
     /**
      * 
      * @param {Group} group 
      * @param {*} cb 
+     * @returns {Promise<{peer, feed}>}
      */
     async getFeedsByPeersForGroup(group) {
         let peers = [... new Set(group.peers)]
