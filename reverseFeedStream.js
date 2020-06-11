@@ -69,7 +69,7 @@ class ReverseFeedStream extends EventEmitter {
                 this.feed.head((err, head) => {
                     if (err) return cb(new Error("no head found"), null)
 
-                    this._relevantIndex = head.data.dict[this._chatID]
+                    this._relevantIndex = head.conversationIDs[this._chatID]
 
                     return this._getDecryptedMessageOfRelevantIndex(cb)
                 })
@@ -93,7 +93,7 @@ class ReverseFeedStream extends EventEmitter {
                 this.feed.get(this._relevantIndex - 1, (err, nextMessage) => {
                     if (err) return cb(err, null)
 
-                    this._relevantIndex = nextMessage.data.dict[this._chatID]
+                    this._relevantIndex = nextMessage.conversationIDs[this._chatID]
                     let decrypted = this._getDecryptedMessage(currentMessage, cb)
                     return cb(null, decrypted)
                 })
@@ -110,7 +110,7 @@ class ReverseFeedStream extends EventEmitter {
     /// Returns 'prev' via callback where prev: { message, sender, vector }. 
     /// 'currentMessage' is {type, data: { ciphertext, dict }}
     _getDecryptedMessage(currentMessage) {
-        let decrypted = this._decryptAndAddMetaData(currentMessage.data.ciphertext)
+        let decrypted = this._decryptAndAddMetaData(currentMessage.ciphertext)
 
         if (!decrypted) throw new Error("Decryption failed")
         else return decrypted
@@ -128,9 +128,9 @@ class ReverseFeedStream extends EventEmitter {
         let message = JSON.parse(data.toString('utf-8'))
 
         // Return if message is not intended for us
-        if (message.data.dict[this._chatID] !== index) return
+        if (message.conversationIDs[this._chatID] !== index) return
 
-        let decrypted = this._decryptAndAddMetaData(message.data.ciphertext)
+        let decrypted = this._decryptAndAddMetaData(message.ciphertext)
 
         if (decrypted) {
             this.emit('vectorclock', decrypted.vector)
@@ -141,7 +141,7 @@ class ReverseFeedStream extends EventEmitter {
     _onOwnFeedAppendHandler() {
         this.feed.head((err, message) => {
             if (err) throw err
-            let decrypted = this._decryptAndAddMetaData(message.data.ciphertext)
+            let decrypted = this._decryptAndAddMetaData(message.ciphertext)
 
             if (decrypted) {
                 this.emit('data', decrypted)

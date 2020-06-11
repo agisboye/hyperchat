@@ -165,7 +165,7 @@ class Hyperchat extends EventEmitter {
         merger.on('vectorclock', (vector, peers) => this._updateVectorclock(vector, peers))
         return merger
     }
-    
+
     /** Private API **/
 
     /**
@@ -199,7 +199,6 @@ class Hyperchat extends EventEmitter {
             onhandshake: () => {
                 // Drop duplicate connections
                 let dropped = details.deduplicate(stream.publicKey, stream.remotePublicKey)
-                console.log("onhandshake, dropped connection: ", dropped)
             },
             ondiscoverykey: (discoveryKey) => {
                 let peer = this._groupPersistence.getPeerForDiscoveryKey(discoveryKey)
@@ -208,7 +207,6 @@ class Hyperchat extends EventEmitter {
                     // If the peer has sent a capability for  their key, we know that they
                     // are the owner.                    
                     if (stream.remoteVerified(peer.pubKey)) {
-                        console.log(`Remote verified ${peer}`)
 
                         const count = this._onlineIndicator.increment(peer)
 
@@ -246,10 +244,12 @@ class Hyperchat extends EventEmitter {
                         const invitingPeerIndex = pubKeys.findIndex(k => stream.remoteVerified(k) && !this.me.pubKey.equals(k))
                         const verified = invitingPeerIndex !== -1
 
-                        console.log("Invite received. Remote verified: ", verified)
                         if (!verified) return
-
                         const peers = pubKeys.map(p => new Peer(p))
+                        // TODO: Simple hack to make up for the missing 'remoteAuthenticated' 
+                        // which is not yet integrated into hypercore-protocol. 
+                        if (!peers.includes(this.me)) return
+                        
                         const group = Group.init(peers, this.me)
 
                         // Save group and key
@@ -275,8 +275,6 @@ class Hyperchat extends EventEmitter {
             }
         })
 
-        console.log("Topics: ", details.topics.map(b => b.toString("hex").substring(0, 6)))
-
         this._replicateAll(stream)
         pump(stream, socket, stream)
     }
@@ -288,7 +286,6 @@ class Hyperchat extends EventEmitter {
      */
     _replicate(peer, stream) {
         this._feedsManager.getFeed(peer, feed => {
-            console.log("replicating", feed.key.toString('hex').substring(0, 10))
             feed.replicate(stream, { live: true })
         })
     }
@@ -296,7 +293,6 @@ class Hyperchat extends EventEmitter {
     _replicateAll(stream) {
         this._feedsManager.getAllFeeds((feeds) => {
             for (let feed of feeds) {
-                console.log("replicating all:", feed.key.toString('hex').substring(0, 10))
                 feed.replicate(stream, { live: true })
             }
         })
@@ -304,6 +300,7 @@ class Hyperchat extends EventEmitter {
 
     _createEncryptedMessage(plaintext, vectorTimestamp, key, cb) {
         const internalMessage = {
+            type: "message",
             vector: vectorTimestamp,
             message: plaintext
         }
@@ -314,14 +311,11 @@ class Hyperchat extends EventEmitter {
         this._feed.head((err, head) => {
             if (err && this._feed.length > 0) return cb(err)
 
-            const dict = ((head) ? head.data.dict : undefined) || {}
-            dict[chatID] = this._feed.length
+            const conversationIDs = ((head) ? head.conversationIDs : undefined) || {}
+            conversationIDs[chatID] = this._feed.length
             cb({
-                type: 'message',
-                data: {
-                    dict: dict,
-                    ciphertext: ciphertext.toString('hex')
-                }
+                conversationIDs: conversationIDs,
+                ciphertext: ciphertext.toString('hex')
             })
         })
     }

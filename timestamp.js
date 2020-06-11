@@ -14,7 +14,9 @@ class Timestamp {
         // ensure group is on [Peer] format
         peers.sort((p1, p2) => Buffer.compare(p1.pubKey, p2.pubKey))
         let index = peers.findIndex((p) => peer.equals(p))
-        if (index === -1) throw new Error("'peer' is not in 'group'")
+        if (index === -1) {
+            throw new Error("'peer' is not in 'group'")
+        }
 
         vector = vector || new Array(peers.length).fill(0)
         if (vector.length !== peers.length) throw new Error("'vector' length doesnt match 'group' length")
@@ -27,7 +29,6 @@ class Timestamp {
     }
 
     increment() {
-        console.log('incrementing at index', this.index)
         this.vector[this.index] += 1
     }
 
@@ -44,8 +45,6 @@ class Timestamp {
         }
 
         this.increment()
-
-        console.log('updated timestamp =', this.vector)
     }
 
     isEqualTo(otherTimestamp) {

@@ -55,7 +55,6 @@ class Keychain {
      */
     saveGroupKey(key, group) {
         if (key.length !== crypto.KEY_LENGTH) throw new Error("Invalid key")
-        console.log("> keychain. Saving key=", key.toString('hex').substring(0, 5))
         this._group_keys[group.id] = key
         this._saveKeychain()
     }
