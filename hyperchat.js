@@ -3,7 +3,7 @@ const Protocol = require('hypercore-protocol')
 const pump = require('pump')
 const hypercore = require('hypercore')
 const hyperswarm = require('hyperswarm')
-const PeerPersistence = require('./peerPersistence')
+const GroupPersistence = require('./groupPersistence')
 const FeedManager = require('./feedManager')
 const FeedMerger = require('./feedMerger')
 const OnlineIndicator = require('./onlineIndicator')
@@ -34,7 +34,7 @@ class Hyperchat extends EventEmitter {
 
         let keyPair = this._keychain.myKeypair
         this.me = new Peer(keyPair.publicKey)
-        this._peerPersistence = new PeerPersistence(name)
+        this._groupPersistence = new GroupPersistence(name)
         this._pendingInvites = new PendingInvites(this.me)
 
         this._swarm = hyperswarm()
@@ -72,7 +72,7 @@ class Hyperchat extends EventEmitter {
         this._feed.ready(() => {
             this._print()
             this._announceSelf()
-            this._joinTopics(this._peerPersistence.peers)
+            this._joinTopics(this._groupPersistence.peers)
             this._swarm.on('connection', (socket, details) => this._onConnection(socket, details))
             this.emit(Events.READY)
         })
@@ -83,7 +83,7 @@ class Hyperchat extends EventEmitter {
      * @returns {Array<Group>}
      */
     get groups() {
-        return this._peerPersistence.groups
+        return this._groupPersistence.groups
     }
 
     /**
@@ -91,7 +91,7 @@ class Hyperchat extends EventEmitter {
      * @returns {Array<Peer>}
      */
     get peers() {
-        return this._peerPersistence.peers.map(peer => {
+        return this._groupPersistence.peers.map(peer => {
             return {
                 id: peer.id,
                 isOnline: this._onlineIndicator.isOnline(peer)
@@ -108,7 +108,7 @@ class Hyperchat extends EventEmitter {
         peers.push(this.me)
 
         const group = Group.init(peers, this.me)
-        this._peerPersistence.addGroup(group)
+        this._groupPersistence.addGroup(group)
         const key = this._keychain.getGroupKey(group)
         console.log("Inviting " + group)
 
@@ -122,7 +122,7 @@ class Hyperchat extends EventEmitter {
      * @param {Group} group 
      */
     acceptInvite(group) {
-        this._peerPersistence.addGroup(group)
+        this._groupPersistence.addGroup(group)
         this.emit(Events.PEERS_CHANGED, this.peers)
 
         for (let peer of group.peers) {
@@ -143,7 +143,7 @@ class Hyperchat extends EventEmitter {
         let key = this._keychain.getGroupKey(group)
         group.timestamp.increment()
         let vectorTimestamp = group.timestamp.sendableForm()
-        this._peerPersistence.saveTimestampForGroup(group)
+        this._groupPersistence.saveTimestampForGroup(group)
         this._createEncryptedMessage(content, vectorTimestamp, key, (message) => {
             this._feed.append(message, err => {
                 if (err) throw err
@@ -174,7 +174,7 @@ class Hyperchat extends EventEmitter {
      * @param {Array<Peer>} peers 
      */
     _updateVectorclock(vector, peers) {
-        this._peerPersistence.updateTimestampForGroup(Group.init(peers, this.me), vector)
+        this._groupPersistence.updateTimestampForGroup(Group.init(peers, this.me), vector)
     }
 
     _announceSelf() {
@@ -202,7 +202,7 @@ class Hyperchat extends EventEmitter {
                 console.log("onhandshake, dropped connection: ", dropped)
             },
             ondiscoverykey: (discoveryKey) => {
-                let peer = this._peerPersistence.getPeerForDiscoveryKey(discoveryKey)
+                let peer = this._groupPersistence.getPeerForDiscoveryKey(discoveryKey)
 
                 if (peer) {
                     // If the peer has sent a capability for  their key, we know that they
@@ -226,7 +226,7 @@ class Hyperchat extends EventEmitter {
                 }
             },
             onchannelclose: (discoveryKey, _) => {
-                let peer = this._peerPersistence.getPeerForDiscoveryKey(discoveryKey)
+                let peer = this._groupPersistence.getPeerForDiscoveryKey(discoveryKey)
 
                 if (peer) {
                     this._onlineIndicator.decrement(peer)
