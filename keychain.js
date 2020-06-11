@@ -5,6 +5,10 @@ const crypto = require('./crypto')
 class Keychain {
 
     constructor(name) {
+        if (!fs.existsSync("./persistence")) {
+            fs.mkdirSync("./persistence")
+        }
+        
         this.path = "./persistence/keychain" + name + ".json"
         this._group_keys = {}
         this._loadKeychain()
