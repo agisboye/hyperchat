@@ -62,16 +62,7 @@ class Timestamp {
     isParallelTo(otherTimestamp) {
         return this._compareTo(otherTimestamp) === PARALLEL
     }
-
-    //TODO: Remove
-    // elementwiseDifference(other) {
-    //     let totalDiff = 0
-    //     for (let i = 0; i < this.length; i++) {
-    //         totalDiff += Math.abs(this._array[i] - other._array[i])
-    //     }
-    //     return totalDiff
-    // }
-
+    
     _compareTo(otherTimestamp) {
         let otherVector = Array.isArray(otherTimestamp) ? otherTimestamp : otherTimestamp.vector
         let lessThan = 0

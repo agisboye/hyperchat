@@ -210,7 +210,6 @@ class Hyperchat extends EventEmitter {
 
                         const count = this._onlineIndicator.increment(peer)
 
-                        // TODO: Make this prettier
                         if (count === 1) {
                             const invites = this._pendingInvites.getPendingInvites(peer)
                             for (let invite of invites) {

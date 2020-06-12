@@ -53,15 +53,12 @@ class FeedMerger extends EventEmitter {
         return res
     }
 
-    //TODO: Refactor to loop instead of using helper.
     /// Returns [{index, prev}] where prev: {message, sender, vector} from all streams. 
     /// 'index' shows which stream from '_streams' the message came from. 
     async _getAllPrevsEnumerated() {
         return await this._getAllPrevsEnumeratedHelper(0, [])
     }
 
-
-    //TODO: Refactor to loop instead of using helper.
     /// Returns [{index, prev}] where prev: {message, sender, vector} from all streams. 
     // i = index for the current stream. 
     // res = where we save our result incrementally
@@ -105,7 +102,6 @@ class FeedMerger extends EventEmitter {
     _findNewest(prevs) {
         prevs.forEach(prev => prev.timestamp = new Timestamp({ index: prev.index, vector: prev.vector }))
 
-        // TODO: Im not sure of this is is correct as ||-property is not transitive..
         let max = this._findNewestTimestamp(prevs)
         let parallels = this._findParallelsTo(max, prevs)
 
