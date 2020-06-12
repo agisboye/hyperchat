@@ -323,7 +323,7 @@ class Hyperchat extends EventEmitter {
     _print() {
         console.log('------------------------')
         console.log('> status [hex notation]:')
-        console.log('> feedkey =', this.me.id)
+        console.log('> peer ID =', this.me.id)
         console.log('> disckey =', this.me.feedDiscoveryKey.toString('hex').substring(0, 10) + "...")
         console.log('------------------------')
     }
