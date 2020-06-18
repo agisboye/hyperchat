@@ -247,7 +247,7 @@ class Hyperchat extends EventEmitter {
                         const peers = pubKeys.map(p => new Peer(p))
                         // TODO: Simple hack to make up for the missing 'remoteAuthenticated' 
                         // which is not yet integrated into hypercore-protocol. 
-                        if (!peers.includes(this.me)) return
+                        if (peers.findIndex(p => p.equals(this.me)) == -1) return
                         
                         const group = Group.init(peers, this.me)
 
@@ -256,13 +256,8 @@ class Hyperchat extends EventEmitter {
                         this._keychain.saveGroupKey(key, group)
                         this._inviteStreams[peers[invitingPeerIndex].id] = stream
 
-
-                        // connect to the remaining group members (all except yourself and inviter)
-                        let remainingPubKeys = pubKeys
-                        remainingPubKeys.splice(invitingPeerIndex, 1)
-                        remainingPubKeys = remainingPubKeys.filter((k) => !this.me.pubKey.equals(k))
-                        let remainingPeers = remainingPubKeys.map(k => new Peer(k))
-                        this._joinTopics(remainingPeers)
+                        // Connect to all peers in the group
+                        this._joinTopics(peers)
 
                         this.emit(Events.INVITE, group)
 
