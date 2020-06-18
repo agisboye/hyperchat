@@ -1,3 +1,5 @@
+#!/bin/bash
+
 # delete all files in ./persistence
 rm ./persistence/*
 
