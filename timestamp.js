@@ -75,7 +75,7 @@ class Timestamp {
             else equal++
         }
 
-        if (equal === this.length) return EQUAL
+        if (equal === this.vector.length) return EQUAL
         if (lessThan > 0 && greaterThan > 0) return PARALLEL
         if (lessThan > 0) return LESS_THAN
         return GREATER_THAN
