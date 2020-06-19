@@ -188,19 +188,23 @@ class Hyperchat extends EventEmitter {
      */
     _joinTopics(peers) {
         peers.forEach(peer => {
+            console.log("joining topic", peer.toString())
             this._swarm.join(peer.feedDiscoveryKey, { lookup: true, announce: true })
         })
     }
 
     _onConnection(socket, details) {
+        console.log("onconnection, details", details.peer ? details.peer.host : "null")
 
         const stream = new Protocol(details.client, {
             keyPair: this._protocolKeyPair,
             onhandshake: () => {
                 // Drop duplicate connections
                 let dropped = details.deduplicate(stream.publicKey, stream.remotePublicKey)
+                console.log("onhandshake")
             },
             ondiscoverykey: (discoveryKey) => {
+                console.log("ondiscoverykey")
                 let peer = this._groupPersistence.getPeerForDiscoveryKey(discoveryKey)
 
                 if (peer) {
@@ -223,6 +227,7 @@ class Hyperchat extends EventEmitter {
                 }
             },
             onchannelclose: (discoveryKey, _) => {
+                console.log("onchannelclose")
                 let peer = this._groupPersistence.getPeerForDiscoveryKey(discoveryKey)
 
                 if (peer) {
@@ -234,7 +239,7 @@ class Hyperchat extends EventEmitter {
         const extension = stream.registerExtension(HYPERCHAT_EXTENSION, {
             encoding: 'json',
             onmessage: (message) => {
-
+                console.log("onmessage")
                 switch (message.type) {
                     case HYPERCHAT_PROTOCOL_INVITE:
 
@@ -248,7 +253,7 @@ class Hyperchat extends EventEmitter {
                         // TODO: Simple hack to make up for the missing 'remoteAuthenticated' 
                         // which is not yet integrated into hypercore-protocol. 
                         if (peers.findIndex(p => p.equals(this.me)) == -1) return
-                        
+
                         const group = Group.init(peers, this.me)
 
                         // Save group and key
@@ -270,7 +275,7 @@ class Hyperchat extends EventEmitter {
         })
 
         this._replicateAll(stream)
-        pump(stream, socket, stream)
+        pump(stream, socket, stream, console.log)
     }
 
     /**
