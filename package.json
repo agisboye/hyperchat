@@ -1,5 +1,5 @@
 {
-    "name": "hyperchat-poc",
+    "name": "hyperchat",
     "version": "1.0.0",
     "description": "",
     "main": "main.js",
@@ -8,14 +8,14 @@
     },
     "repository": {
         "type": "git",
-        "url": "git+https://github.com/agisboye/hyperchat-poc.git"
+        "url": "git+https://github.com/agisboye/hyperchat.git"
     },
     "author": "",
     "license": "ISC",
     "bugs": {
-        "url": "https://github.com/agisboye/hyperchat-poc/issues"
+        "url": "https://github.com/agisboye/hyperchat/issues"
     },
-    "homepage": "https://github.com/agisboye/hyperchat-poc#readme",
+    "homepage": "https://github.com/agisboye/hyperchat#readme",
     "dependencies": {
         "duplex-json-stream": "^1.0.1",
         "hypercore": "^9.0.0",

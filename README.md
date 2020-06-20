@@ -1,1 +1,1 @@
-# hyperchat-poc
+# hyperchat
