@@ -199,12 +199,12 @@ class Hyperchat extends EventEmitter {
         const stream = new Protocol(details.client, {
             keyPair: this._protocolKeyPair,
             onhandshake: () => {
+                console.log("onhandshake")
                 // Drop duplicate connections
                 let dropped = details.deduplicate(stream.publicKey, stream.remotePublicKey)
-                console.log("onhandshake")
             },
-            ondiscoverykey: (discoveryKey) => {
-                console.log("ondiscoverykey")
+            onremoteopen: (discoveryKey) => {
+                console.log("onremoteopen")
                 let peer = this._groupPersistence.getPeerForDiscoveryKey(discoveryKey)
 
                 if (peer) {

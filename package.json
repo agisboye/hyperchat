@@ -18,11 +18,11 @@
     "homepage": "https://github.com/agisboye/hyperchat#readme",
     "dependencies": {
         "duplex-json-stream": "^1.0.1",
-        "hypercore": "^9.0.0",
-        "hyperswarm": "^2.13.0",
+        "hypercore": "^9.2.0",
+        "hypercore-protocol": "hypercore-protocol/hypercore-protocol#master",
+        "hyperswarm": "^2.14.0",
         "noise-peer": "^2.0.0",
         "sodium-native": "^3.0.0",
-        "sorted-union-stream": "^3.0.1",
-        "uuid": "^3.4.0"
+        "sorted-union-stream": "^3.0.1"
     }
 }
