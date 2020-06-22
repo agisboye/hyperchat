@@ -17,6 +17,7 @@ class ReverseFeedStream extends EventEmitter {
     }
 
     async getAllPrevsParallelToTimestamps(timestamps) {
+        if (timestamps.length === 0) return []
         let prev;
         let res = []
         while (prev = await this.getPrev()) {
