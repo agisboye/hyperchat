@@ -188,23 +188,18 @@ class Hyperchat extends EventEmitter {
      */
     _joinTopics(peers) {
         peers.forEach(peer => {
-            console.log("joining topic", peer.toString())
             this._swarm.join(peer.feedDiscoveryKey, { lookup: true, announce: true })
         })
     }
 
     _onConnection(socket, details) {
-        console.log("onconnection, details", details.peer ? details.peer.host : "null")
-
         const stream = new Protocol(details.client, {
             keyPair: this._protocolKeyPair,
             onhandshake: () => {
-                console.log("onhandshake")
                 // Drop duplicate connections
                 let dropped = details.deduplicate(stream.publicKey, stream.remotePublicKey)
             },
             onremoteopen: (discoveryKey) => {
-                console.log("onremoteopen")
                 let peer = this._groupPersistence.getPeerForDiscoveryKey(discoveryKey)
 
                 if (peer) {
@@ -227,7 +222,6 @@ class Hyperchat extends EventEmitter {
                 }
             },
             onchannelclose: (discoveryKey, _) => {
-                console.log("onchannelclose")
                 let peer = this._groupPersistence.getPeerForDiscoveryKey(discoveryKey)
 
                 if (peer) {
@@ -239,7 +233,6 @@ class Hyperchat extends EventEmitter {
         const extension = stream.registerExtension(HYPERCHAT_EXTENSION, {
             encoding: 'json',
             onmessage: (message) => {
-                console.log("onmessage")
                 switch (message.type) {
                     case HYPERCHAT_PROTOCOL_INVITE:
 
@@ -275,7 +268,7 @@ class Hyperchat extends EventEmitter {
         })
 
         this._replicateAll(stream)
-        pump(stream, socket, stream, console.log)
+        pump(stream, socket, stream)
     }
 
     /**

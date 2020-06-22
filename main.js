@@ -76,7 +76,7 @@ async function drain(stream) {
 /* User input */
 process.stdin.on('data', data => {
 
-    let message = data.toString('utf-8')
+    let message = data.toString('utf-8').trim()
     let group = chat.groups[0]
     chat.sendMessageTo(group, message)
 })
