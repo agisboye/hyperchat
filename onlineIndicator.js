@@ -22,9 +22,9 @@ class OnlineIndicator {
         let key = peer.id
         let count = this._counts[key]
         if (count) {
-            this._counts[key] = count + 1
+            this._counts[key] = count + 2
         } else {
-            this._counts[key] = 1
+            this._counts[key] = 2
             this._onOnline(peer)
         }
 
