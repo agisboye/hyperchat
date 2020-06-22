@@ -202,7 +202,7 @@ class Hyperchat extends EventEmitter {
             onremoteopen: (discoveryKey) => {
                 let peer = this._groupPersistence.getPeerForDiscoveryKey(discoveryKey)
 
-                if (peer) {
+                if (peer && !peer.equals(this.me)) {
                     // If the peer has sent a capability for  their key, we know that they
                     // are the owner.                    
                     if (stream.remoteVerified(peer.pubKey)) {
